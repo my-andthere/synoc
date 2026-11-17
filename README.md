@@ -26,19 +26,37 @@ python3 -m http.server 8000
 
 ## Deploy
 
-Push to `main` — the workflow handles the rest. To trigger manually:
+Push to `main`. Two workflows are included:
+
+| File | Target | Requires |
+|---|---|---|
+| `.github/workflows/deploy.yml` | GitHub Pages | Pages enabled on the repo (one-time) |
+| `.github/workflows/netlify.yml` | Netlify | `NETLIFY_AUTH_TOKEN` + `NETLIFY_SITE_ID` secrets |
+
+### Target A — GitHub Pages
+
+Pages must be enabled once in the UI. The API token used by this workspace has
+`repo` + `workflow` only, so it cannot create the Pages site:
+
+1. Open **Settings → Pages**
+2. Under *Build and deployment → Source*, choose **GitHub Actions**
+3. Re-run the workflow (push any commit, or *Actions → Deploy to GitHub Pages → Run workflow*)
+
+Live URL: `https://my-andthere.github.io/synoc/`
+
+### Target B — Netlify (no UI step)
 
 ```bash
-gh workflow run deploy.yml
+# create the site once, get the site ID
+npx netlify-cli sites:create --name synoc
+
+gh secret set NETLIFY_AUTH_TOKEN   # paste a personal access token from app.netlify.com
+gh secret set NETLIFY_SITE_ID      # paste the site ID printed above
 ```
 
-## Activate Pages (one time)
+Then push. Live URL: `https://synoc.netlify.app/` (or the generated subdomain).
 
-```bash
-gh api -X POST repos/my-andthere/synoc/pages \
-  -f 'source[branch]=main' -f 'source[path]=/' \
-  -H "Accept: application/vnd.github+json"
-```
+### Target C — any static host
 
-> If the branch-based source is rejected, switch Pages to **GitHub Actions** in
-> Settings → Pages; the included workflow deploys the same content.
+The site is three files (`index.html`, `styles.css`, `app.js`). Drop them on
+Cloudflare Pages, Vercel, Render, S3, or any web server. No build step.
