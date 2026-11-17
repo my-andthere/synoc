@@ -1,10 +1,20 @@
 # synoc
 
-Static dashboard — **live online** via GitHub Pages.
+Static dashboard — **live online**, publicly reachable over HTTPS.
 
 ## URL
 
-Once deployed: **https://my-andthere.github.io/synoc/**
+**Live now (public, HTTPS):**
+
+**https://sturdy-carnival-r764v6wqgrf57qr-8000.app.github.dev/**
+
+Served straight from this Codespace through GitHub's public port forwarding.
+Works from any device, no install needed. The first visit in a new browser shows
+a one-time GitHub "dev port" notice — click *Continue*.
+
+GitHub Pages URL (available after the one-time step in Target A):
+
+https://my-andthere.github.io/synoc/
 
 ## What it is
 
@@ -35,14 +45,22 @@ Push to `main`. Two workflows are included:
 
 ### Target A — GitHub Pages
 
-Pages must be enabled once in the UI. The API token used by this workspace has
-`repo` + `workflow` only, so it cannot create the Pages site:
+The workflow sets `enablement: true`, so `actions/configure-pages` creates the
+Pages site on the first run — **but only if the token may create it**.
+
+The token in this Codespace (`ghu_…`, a GitHub App user token) may not:
+`POST /repos/{owner}/{repo}/pages` returns `403 Resource not accessible by
+integration`, both from the CLI and from inside the workflow. Hence one manual
+step, once:
 
 1. Open **Settings → Pages**
 2. Under *Build and deployment → Source*, choose **GitHub Actions**
 3. Re-run the workflow (push any commit, or *Actions → Deploy to GitHub Pages → Run workflow*)
 
 Live URL: `https://my-andthere.github.io/synoc/`
+
+> Until that step is done, the Codespaces-forwarded URL at the top of this file
+> is the public one.
 
 ### Target B — Netlify (no UI step)
 
