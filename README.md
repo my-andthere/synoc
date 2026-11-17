@@ -2,6 +2,16 @@
 
 Static dashboard — **live online**, publicly reachable over HTTPS.
 
+## Applications
+
+| App | URL | Stack |
+|---|---|---|
+| **SYNOC Dashboard** | https://sturdy-carnival-r764v6wqgrf57qr-8000.app.github.dev/ | Static, zero-dep |
+| **SYNOC NOC Helpdesk** | https://sturdy-carnival-r764v6wqgrf57qr-8000.app.github.dev/helpdesk/ | Express + MySQL 8 |
+
+Both are served by one public gateway on port `8000` (see
+[`noc-helpdesk/`](noc-helpdesk/README.md)).
+
 ## URL
 
 **Live now (public, HTTPS):**
@@ -15,6 +25,20 @@ a one-time GitHub "dev port" notice — click *Continue*.
 GitHub Pages URL (available after the one-time step in Target A):
 
 https://my-andthere.github.io/synoc/
+
+## NOC Helpdesk (MySQL)
+
+Ticket management for the NOC with **SLA** monitoring and **master data**.
+
+```bash
+cd noc-helpdesk
+./start.sh demo      # MySQL + gateway + 24 demo tickets
+```
+
+- Helpdesk: `/helpdesk/` — login `admin` / `admin123`
+- Full docs: [`noc-helpdesk/README.md`](noc-helpdesk/README.md)
+
+## What it is
 
 ## What it is
 
