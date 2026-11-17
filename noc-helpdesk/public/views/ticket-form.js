@@ -213,8 +213,8 @@ export async function renderTicketForm(container) {
       </section>
 
       <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
-        <button type="reset" class="btn btn-ghost" id="fReset">Bersihkan</button>
-        <button type="submit" class="btn btn-primary" id="fSubmit">Buat Tiket</button>
+        <button type="reset" class="btn btn-ghost" id="fReset"><i class="bi bi-eraser"></i> Bersihkan</button>
+        <button type="submit" class="btn btn-primary" id="fSubmit"><i class="bi bi-plus-lg"></i> Buat Tiket</button>
       </div>
     </form>
   `;

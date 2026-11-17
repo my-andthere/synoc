@@ -130,9 +130,12 @@ export function closeModal() {
   document.getElementById('modalBody').innerHTML = '';
 }
 
-/** Render a simple empty state. */
+/**
+ * Render a simple empty state.
+ * @param {string} icon  Bootstrap Icons class, e.g. 'bi-inbox'
+ */
 export function emptyState(icon, message) {
-  return `<div class="empty"><div class="empty-icon">${icon}</div><p>${esc(message)}</p></div>`;
+  return `<div class="empty"><div class="empty-icon"><i class="bi ${esc(icon)}"></i></div><p>${esc(message)}</p></div>`;
 }
 
 /**

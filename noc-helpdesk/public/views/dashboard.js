@@ -64,7 +64,7 @@ export async function renderDashboard(container) {
                 <span style="width:${Math.max(pct, 2)}%"></span>
               </div>
             </div>`;
-        }).join('') || emptyState('📊', 'Belum ada data')}
+        }).join('') || emptyState('bi-bar-chart', 'Belum ada data')}
       </div>
 
       <div class="card">
@@ -75,12 +75,12 @@ export async function renderDashboard(container) {
           return `
             <div style="margin-bottom:11px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:0.86rem">
-                <span>${esc(c.channel_icon || '')} ${esc(c.channel_name)}</span>
+                <span><i class="bi ${esc(c.channel_icon || 'bi-inbox')}"></i> ${esc(c.channel_name)}</span>
                 <strong>${esc(String(c.count || 0))}</strong>
               </div>
               <div class="sla-meter sla-ok"><span style="width:${Math.max(pct, 2)}%"></span></div>
             </div>`;
-        }).join('') || emptyState('✉', 'Belum ada data')}
+        }).join('') || emptyState('bi-envelope', 'Belum ada data')}
       </div>
     </div>
 
@@ -101,7 +101,7 @@ export async function renderDashboard(container) {
                   </tr>`).join('')}
               </tbody>
             </table>
-          </div>` : emptyState('🎫', 'Belum ada tiket')}
+          </div>` : emptyState('bi-ticket-perforated', 'Belum ada tiket')}
       </div>
 
       <div class="card">
@@ -126,7 +126,7 @@ export async function renderDashboard(container) {
 }
 
 function trendChart(rows) {
-  if (!rows.length) return emptyState('📈', 'Belum ada data 14 hari terakhir');
+  if (!rows.length) return emptyState('bi-graph-up-arrow', 'Belum ada data 14 hari terakhir');
   const max = Math.max(...rows.map((r) => Number(r.count) || 0), 1);
   return `<div class="bars">
     ${rows.map((r) => {

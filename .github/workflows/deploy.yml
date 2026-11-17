@@ -34,6 +34,7 @@ jobs:
         run: |
           mkdir -p _site
           cp index.html styles.css app.js _site/
+          cp -r noc-helpdesk/public/vendor _site/vendor
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

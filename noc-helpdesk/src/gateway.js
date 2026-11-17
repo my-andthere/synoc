@@ -86,6 +86,13 @@ app.use(`${MOUNT}/api/master`, masterRouter);
 
 app.use(MOUNT, express.static(HELPDESK_PUBLIC, { extensions: ['html'] }));
 
+// Shared vendor assets (Bootstrap Icons) — served at the root so the static
+// dashboard can reach them too, without duplicating the font files.
+app.use('/vendor', express.static(path.join(HELPDESK_PUBLIC, 'vendor'), {
+  maxAge: '7d',
+  immutable: true,
+}));
+
 // SPA fallback for the helpdesk
 app.get(`${MOUNT}/*`, (req, res, next) => {
   if (req.path.startsWith(`${MOUNT}/api`)) return next();

@@ -140,7 +140,7 @@ async function loadTable() {
   const { data, count } = await api.tickets(params);
 
   if (!data.length) {
-    target.innerHTML = emptyState('🔍', 'Tidak ada tiket yang cocok dengan filter');
+    target.innerHTML = emptyState('bi-search', 'Tidak ada tiket yang cocok dengan filter');
     return;
   }
 

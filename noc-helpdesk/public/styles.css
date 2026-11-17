@@ -35,6 +35,11 @@
 
 html { color-scheme: dark; }
 
+/* ---------- Bootstrap Icons ---------- */
+
+.bi { line-height: 1; vertical-align: -0.125em; }
+.bi::before { line-height: 1; }
+
 body {
   font-family: var(--sans);
   background:

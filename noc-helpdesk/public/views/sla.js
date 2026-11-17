@@ -65,7 +65,7 @@ export async function renderSla(container) {
                 </tr>`).join('')}
             </tbody>
           </table>
-        </div>` : emptyState('⏱', 'Belum ada kebijakan SLA')}
+        </div>` : emptyState('bi-stopwatch', 'Belum ada kebijakan SLA')}
     </div>
   `;
 }

@@ -73,7 +73,7 @@ ticketRouter.get('/dashboard/summary', async (req, res, next) => {
 
     const byChannel = await query(
       `SELECT COALESCE(ch.name, 'Unassigned') AS channel_name,
-              COALESCE(ch.icon, '•')          AS channel_icon,
+              COALESCE(ch.icon, 'bi-inbox')   AS channel_icon,
               COUNT(t.id)                     AS count
          FROM m_report_channel ch
          LEFT JOIN tickets t ON t.channel_id = ch.id

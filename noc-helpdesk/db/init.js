@@ -88,12 +88,12 @@ const PRIORITIES = [
 ];
 
 const CHANNELS = [
-  { code: 'CUSTOM',   name: 'Custom',   icon: '📝', sort_order: 1 },
-  { code: 'EMAIL',    name: 'Email',    icon: '✉️', sort_order: 2 },
-  { code: 'TELEGRAM', name: 'Telegram', icon: '✈️', sort_order: 3 },
-  { code: 'WHATSAPP', name: 'WhatsApp', icon: '💬', sort_order: 4 },
-  { code: 'PHONE',    name: 'Phone',    icon: '☎️', sort_order: 5 },
-  { code: 'PORTAL',   name: 'Portal',   icon: '🌐', sort_order: 6 },
+  { code: 'CUSTOM',   name: 'Custom',   icon: 'bi-pencil-square', sort_order: 1 },
+  { code: 'EMAIL',    name: 'Email',    icon: 'bi-envelope',      sort_order: 2 },
+  { code: 'TELEGRAM', name: 'Telegram', icon: 'bi-telegram',      sort_order: 3 },
+  { code: 'WHATSAPP', name: 'WhatsApp', icon: 'bi-chat-dots',     sort_order: 4 },
+  { code: 'PHONE',    name: 'Phone',    icon: 'bi-telephone',     sort_order: 5 },
+  { code: 'PORTAL',   name: 'Portal',   icon: 'bi-globe',         sort_order: 6 },
 ];
 
 const CUSTOMERS = [

@@ -23,7 +23,7 @@ export async function showTicket(id) {
       ${statusBadge(t.status)}
       ${priorityPill(t.priority_name, t.priority_color)}
       <span class="badge b-neutral">${esc(t.service_type_name)}</span>
-      ${overdue ? '<span class="badge b-breach">⚠ SLA Terlanggar</span>' : ''}
+      ${overdue ? '<span class="badge b-breach"><i class="bi bi-exclamation-triangle"></i> SLA Terlanggar</span>' : ''}
       ${!overdue && !closed ? '<span class="badge b-ok">Dalam SLA</span>' : ''}
     </div>
 
@@ -135,9 +135,9 @@ export async function showTicket(id) {
         </label>
       </div>
       <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:6px">
-        <button class="btn btn-primary btn-sm" id="aApplyStatus">Simpan Status</button>
-        <button class="btn btn-ghost btn-sm" id="aApplyAssign">Simpan Assignee</button>
-        <button class="btn btn-ghost btn-sm" id="aAddNote">Tambah Catatan</button>
+        <button class="btn btn-primary btn-sm" id="aApplyStatus"><i class="bi bi-check-lg"></i> Simpan Status</button>
+        <button class="btn btn-ghost btn-sm" id="aApplyAssign"><i class="bi bi-person-check"></i> Simpan Assignee</button>
+        <button class="btn btn-ghost btn-sm" id="aAddNote"><i class="bi bi-chat-left-text"></i> Tambah Catatan</button>
       </div>
     </div>
 
@@ -203,7 +203,7 @@ function eventItem(e) {
   }[e.event_type] || e.event_type;
 
   const detail = e.from_value && e.to_value
-    ? `${esc(e.from_value)} → ${esc(e.to_value)}`
+    ? `${esc(e.from_value)} <i class="bi bi-arrow-right"></i> ${esc(e.to_value)}`
     : (e.to_value || '');
 
   return `<div class="tl-item ${e.event_type === 'sla_breach' ? 'breach' : ''}">

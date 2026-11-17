@@ -5,15 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="SYNOC — NOC Helpdesk System. Ticket management, SLA monitoring, and master data." />
   <title>SYNOC — NOC Helpdesk</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚛</text></svg>" />
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="icon" type="image/svg+xml" href="./vendor/bootstrap-icons/favicon.svg" />  <link rel="stylesheet" href="./vendor/bootstrap-icons/bootstrap-icons.min.css" />  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <!-- ================= LOGIN ================= -->
   <div id="loginScreen" class="login-screen">
     <form id="loginForm" class="login-card">
       <div class="login-brand">
-        <span class="logo-mark">⚛</span>
+        <span class="logo-mark"><i class="bi bi-cpu"></i></span>
         <div>
           <h1>SYNOC</h1>
           <p>NOC Helpdesk System</p>
@@ -40,7 +39,7 @@
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <span class="logo-mark">⚛</span>
+        <span class="logo-mark"><i class="bi bi-cpu"></i></span>
         <div>
           <strong>SYNOC</strong>
           <small>NOC Helpdesk</small>
@@ -48,20 +47,20 @@
       </div>
 
       <nav class="nav" id="mainNav">
-        <button class="nav-item active" data-view="dashboard"><span>◈</span> Dashboard</button>
-        <button class="nav-item" data-view="tickets"><span>🎫</span> Tickets</button>
-        <button class="nav-item" data-view="ticket-new"><span>＋</span> Ticket Baru</button>
-        <button class="nav-item" data-view="sla"><span>⏱</span> SLA &amp; Prioritas</button>
+        <button class="nav-item active" data-view="dashboard"><span><i class="bi bi-speedometer2"></i></span> Dashboard</button>
+        <button class="nav-item" data-view="tickets"><span><i class="bi bi-ticket-perforated"></i></span> Tickets</button>
+        <button class="nav-item" data-view="ticket-new"><span><i class="bi bi-plus-lg"></i></span> Ticket Baru</button>
+        <button class="nav-item" data-view="sla"><span><i class="bi bi-stopwatch"></i></span> SLA &amp; Prioritas</button>
         <div class="nav-group">Master Data</div>
-        <button class="nav-item" data-view="master" data-resource="service_type"><span>▤</span> Jenis Layanan</button>
-        <button class="nav-item" data-view="master" data-resource="priority"><span>⚑</span> Prioritas</button>
-        <button class="nav-item" data-view="master" data-resource="channel"><span>✉</span> Kanal Pelaporan</button>
-        <button class="nav-item" data-view="master" data-resource="customer"><span>🏢</span> Customer</button>
-        <button class="nav-item" data-view="master" data-resource="isp"><span>🌐</span> ISP</button>
-        <button class="nav-item" data-view="master" data-resource="pop"><span>📍</span> POP</button>
-        <button class="nav-item" data-view="master" data-resource="ms_splitter"><span>🔌</span> MS / Splitter</button>
-        <button class="nav-item" data-view="master" data-resource="link"><span>🔗</span> Link</button>
-        <button class="nav-item" data-view="master" data-resource="sla_policy"><span>📋</span> Kebijakan SLA</button>
+        <button class="nav-item" data-view="master" data-resource="service_type"><span><i class="bi bi-diagram-3"></i></span> Jenis Layanan</button>
+        <button class="nav-item" data-view="master" data-resource="priority"><span><i class="bi bi-flag"></i></span> Prioritas</button>
+        <button class="nav-item" data-view="master" data-resource="channel"><span><i class="bi bi-envelope"></i></span> Kanal Pelaporan</button>
+        <button class="nav-item" data-view="master" data-resource="customer"><span><i class="bi bi-building"></i></span> Customer</button>
+        <button class="nav-item" data-view="master" data-resource="isp"><span><i class="bi bi-globe"></i></span> ISP</button>
+        <button class="nav-item" data-view="master" data-resource="pop"><span><i class="bi bi-geo-alt"></i></span> POP</button>
+        <button class="nav-item" data-view="master" data-resource="ms_splitter"><span><i class="bi bi-usb-plug"></i></span> MS / Splitter</button>
+        <button class="nav-item" data-view="master" data-resource="link"><span><i class="bi bi-link-45deg"></i></span> Link</button>
+        <button class="nav-item" data-view="master" data-resource="sla_policy"><span><i class="bi bi-list-check"></i></span> Kebijakan SLA</button>
       </nav>
 
       <div class="sidebar-footer">
@@ -85,7 +84,7 @@
         </div>
         <div class="topbar-actions">
           <span class="live-dot" id="liveDot" title="API tersambung"></span>
-          <button class="btn btn-primary btn-sm" id="refreshBtn">⟳ Refresh</button>
+          <button class="btn btn-primary btn-sm" id="refreshBtn"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
         </div>
       </header>
 
@@ -98,7 +97,7 @@
     <div class="modal" role="dialog" aria-modal="true">
       <header class="modal-head">
         <h3 id="modalTitle">Detail</h3>
-        <button class="icon-btn" id="modalClose" aria-label="Tutup">✕</button>
+        <button class="icon-btn" id="modalClose" aria-label="Tutup"><i class="bi bi-x-lg"></i></button>
       </header>
       <div class="modal-body" id="modalBody"></div>
     </div>
