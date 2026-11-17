@@ -45,10 +45,7 @@ function wireAppLinks() {
 async function probeServices() {
   const svc = $('svcPill');
   const db = $('dbPill');
-  if (!svc || !db) return;
-
-  svc.textContent = 'checking…';
-  db.textContent = 'checking…';
+  const overlay = $('redirectOverlay');
 
   try {
     const res = await fetch(API_HEALTH_URL, {
@@ -58,13 +55,24 @@ async function probeServices() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    svc.textContent = 'connected';
-    db.textContent = data.db?.connected
-      ? `MySQL ${String(data.db.version).split(' ')[0]}`
-      : 'db offline';
+    if (svc) svc.textContent = 'connected';
+    if (db) {
+      db.textContent = data.db?.connected
+        ? `MySQL ${String(data.db.version).split(' ')[0]}`
+        : 'db offline';
+    }
+
+    // The inline head script normally performs the redirect. If it timed out
+    // and the overlay is still up, finish the job here.
+    if (overlay) {
+      overlay.remove();
+      location.replace(HELPDESK_URL);
+    }
   } catch {
-    svc.textContent = 'static build';
-    db.textContent = 'no backend';
+    if (svc) svc.textContent = 'static build';
+    if (db) db.textContent = 'no backend';
+    // No backend — keep the static landing page reachable.
+    if (overlay) overlay.remove();
   }
 }
 

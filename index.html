@@ -3,13 +3,54 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>synoc — Live Dashboard</title>
-<meta name="description" content="synoc — live repository dashboard, served online via GitHub Pages." />
+<title>synoc — NOC Helpdesk</title>
+<meta name="description" content="SYNOC NOC Helpdesk — sistem tiket helpdesk NOC berbasis MySQL dengan SLA otomatis dan master data lengkap." />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9883;</text></svg>" />
 <link rel="stylesheet" href="styles.css" />
+<script>
+/* ------------------------------------------------------------------
+ * Redirect straight to the NOC Helpdesk account page.
+ *
+ * The probe is a fast health check: if the backend + MySQL are up we
+ * replace the location with the login page. On a static-only deployment
+ * (GitHub Pages) there is no backend, so the landing page stays as a
+ * fallback instead of dropping the visitor on a broken login form.
+ * ------------------------------------------------------------------ */
+(function () {
+  var p = location.pathname;
+  if (p.charAt(p.length - 1) !== '/') p = p.slice(0, p.lastIndexOf('/') + 1);
+
+  var controller = new AbortController();
+  var timer = setTimeout(function () { controller.abort(); }, 2000);
+
+  function fallback() {
+    clearTimeout(timer);
+    var overlay = document.getElementById('redirectOverlay');
+    if (overlay) overlay.remove();
+  }
+
+  fetch(p + 'api/health', { signal: controller.signal, cache: 'no-store' })
+    .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error('HTTP ' + res.status)); })
+    .then(function (data) {
+      if (data && data.db && data.db.connected) {
+        location.replace(p + 'helpdesk/');
+      } else {
+        fallback();
+      }
+    })
+    .catch(fallback);
+})();
+</script>
 </head>
 <body>
 <div class="aurora" aria-hidden="true"></div>
+
+<div id="redirectOverlay" class="redirect-overlay">
+  <div class="redirect-box">
+    <span class="spinner" aria-hidden="true"></span>
+    <p>Mengarah ke <strong>NOC Helpdesk</strong>&hellip;</p>
+  </div>
+</div>
 
 <header class="topbar">
   <div class="brand">
