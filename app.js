@@ -10,6 +10,64 @@ const CACHE_KEY = 'synoc:snapshot:v1';
 
 const $ = (id) => document.getElementById(id);
 
+/**
+ * Deployment root of this page, always ending in '/'.
+ * Works both when served from the gateway root ('/') and from a
+ * project sub-path such as GitHub Pages ('/synoc/').
+ */
+const BASE = (() => {
+  let p = location.pathname;
+  if (!p.endsWith('/')) p = p.slice(0, p.lastIndexOf('/') + 1);
+  return p;
+})();
+
+/** Public entry points of the SYNOC applications. */
+const HELPDESK_URL = `${BASE}helpdesk/`;
+const API_HEALTH_URL = `${BASE}api/health`;
+
+/** Point every application link at the right place. */
+function wireAppLinks() {
+  for (const id of ['liveUrl', 'helpdeskLink']) {
+    const el = $(id);
+    if (el) el.href = HELPDESK_URL;
+  }
+  for (const id of ['apiUrl', 'apiLink']) {
+    const el = $(id);
+    if (el) el.href = API_HEALTH_URL;
+  }
+}
+
+/**
+ * Probe the helpdesk backend so the page can report whether the API and
+ * database are reachable. On a static-only deployment (e.g. GitHub Pages)
+ * there is no backend, and we say so instead of showing a false error.
+ */
+async function probeServices() {
+  const svc = $('svcPill');
+  const db = $('dbPill');
+  if (!svc || !db) return;
+
+  svc.textContent = 'checking…';
+  db.textContent = 'checking…';
+
+  try {
+    const res = await fetch(API_HEALTH_URL, {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    svc.textContent = 'connected';
+    db.textContent = data.db?.connected
+      ? `MySQL ${String(data.db.version).split(' ')[0]}`
+      : 'db offline';
+  } catch {
+    svc.textContent = 'static build';
+    db.textContent = 'no backend';
+  }
+}
+
 function relative(iso) {
   if (!iso) return '—';
   const diff = Date.now() - new Date(iso).getTime();
@@ -46,10 +104,6 @@ function paintRepo(data, source) {
   $('repoPush').textContent = relative(data.pushed_at);
 
   $('repoUrl').href = data.html_url;
-  const live = data.homepage || `${location.origin}${location.pathname.replace(/index\.html$/, '')}`;
-  const liveEl = $('liveUrl');
-  liveEl.href = live;
-  liveEl.textContent = 'Buka live URL';
 
   $('apiPill').textContent = source;
   $('protocol').textContent = location.protocol.replace(':', '') || '—';
@@ -150,5 +204,11 @@ async function load() {
 }
 
 $('refresh').addEventListener('click', load);
-document.addEventListener('DOMContentLoaded', load);
-if (document.readyState !== 'loading') load();
+document.addEventListener('DOMContentLoaded', boot);
+if (document.readyState !== 'loading') boot();
+
+function boot() {
+  wireAppLinks();
+  probeServices();
+  load();
+}

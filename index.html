@@ -29,14 +29,58 @@
     <p class="eyebrow">Deployed &amp; publicly accessible</p>
     <h2>Aplikasi ini sekarang <span class="grad">online</span>.</h2>
     <p class="lede">
-      Halaman statis yang di-host di GitHub Pages, menarik metadata langsung dari
-      GitHub API secara real-time. Buka dari perangkat mana pun — tidak perlu install apa pun.
+      <strong>SYNOC NOC Helpdesk</strong> — sistem tiket helpdesk NOC berbasis
+      MySQL dengan SLA otomatis dan master data lengkap. Kelola pelaporan
+      gangguan <b>Access</b>, <b>Backbone</b>, <b>Fishbone</b>, dan layanan lainnya.
+      Buka dari perangkat mana pun — tidak perlu install apa pun.
     </p>
     <div class="urls">
-      <a class="btn primary" id="liveUrl" href="#" target="_blank" rel="noopener">Buka live URL</a>
+      <a class="btn primary" id="liveUrl" href="#helpdesk">Buka NOC Helpdesk</a>
+      <a class="btn" id="apiUrl" href="#api">API Health</a>
       <a class="btn" id="repoUrl" href="https://github.com/my-andthere/synoc" target="_blank" rel="noopener">Source repo</a>
       <button class="btn" id="refresh" type="button">Refresh data</button>
     </div>
+  </section>
+
+  <section class="apps" id="helpdesk">
+    <article class="app-card app-featured">
+      <span class="app-icon">&#9883;</span>
+      <h3>NOC Helpdesk</h3>
+      <p class="app-desc">
+        Tiket helpdesk NOC untuk layanan <b>Access</b>, <b>Backbone</b>,
+        <b>Fishbone</b>, dan <b>Other</b>. Formulir lengkap: CID, Link Name,
+        ISP Name, POP, MS/Splitter, MAC Address, Serial Number, VLAN ID,
+        Signal Input CPE (dBm), Latitude, Longitude, Priority, Kanal
+        Pelaporan, dan Problem Description.
+      </p>
+      <ul class="app-features">
+        <li>16 kebijakan SLA otomatis (4 jenis layanan &times; 4 priority)</li>
+        <li>Master data: POP, ISP, Link, MS/Splitter, Customer, Kanal</li>
+        <li>Dashboard kepatuhan SLA, deteksi breach, dan timeline tiket</li>
+      </ul>
+      <a class="btn primary" id="helpdeskLink" href="#">Masuk Helpdesk &rarr;</a>
+    </article>
+
+    <article class="app-card" id="api">
+      <span class="app-icon">&#128225;</span>
+      <h3>REST API</h3>
+      <p class="app-desc">
+        Endpoint JSON untuk tiket, master data, dan SLA.
+        Autentikasi <code>Bearer</code> token JWT.
+      </p>
+      <p class="pill" id="svcPill">&mdash;</p>
+      <a class="btn" id="apiLink" href="#">Buka health check</a>
+    </article>
+
+    <article class="app-card">
+      <span class="app-icon">&#128451;</span>
+      <h3>MySQL</h3>
+      <p class="app-desc">
+        Database <code>synoc_noc</code> &mdash; 16 tabel, 2 view, tabel clock
+        SLA, timeline, dan audit trail.
+      </p>
+      <p class="pill" id="dbPill">&mdash;</p>
+    </article>
   </section>
 
   <section class="cards" id="cards">
@@ -73,7 +117,7 @@
 </main>
 
 <footer>
-  <p>synoc &middot; static build &middot; no backend required</p>
+  <p>synoc &middot; NOC Helpdesk powered by MySQL &middot; <a href="#helpdesk">Masuk aplikasi</a></p>
 </footer>
 
 <script src="app.js"></script>
