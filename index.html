@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>synoc — Live Dashboard</title>
+<meta name="description" content="synoc — live repository dashboard, served online via GitHub Pages." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9883;</text></svg>" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="aurora" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">&#9883;</span>
+    <div>
+      <h1>synoc</h1>
+      <p class="sub">live online dashboard</p>
+    </div>
+  </div>
+  <div class="status" id="status" data-state="loading">
+    <span class="dot"></span><span id="statusText">connecting…</span>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <p class="eyebrow">Deployed &amp; publicly accessible</p>
+    <h2>Aplikasi ini sekarang <span class="grad">online</span>.</h2>
+    <p class="lede">
+      Halaman statis yang di-host di GitHub Pages, menarik metadata langsung dari
+      GitHub API secara real-time. Buka dari perangkat mana pun — tidak perlu install apa pun.
+    </p>
+    <div class="urls">
+      <a class="btn primary" id="liveUrl" href="#" target="_blank" rel="noopener">Buka live URL</a>
+      <a class="btn" id="repoUrl" href="https://github.com/my-andthere/synoc" target="_blank" rel="noopener">Source repo</a>
+      <button class="btn" id="refresh" type="button">Refresh data</button>
+    </div>
+  </section>
+
+  <section class="cards" id="cards">
+    <article class="card"><h3>Repository</h3><p class="metric" id="repoName">—</p><p class="hint">owner/name</p></article>
+    <article class="card"><h3>Visibility</h3><p class="metric" id="repoPrivate">—</p><p class="hint">public / private</p></article>
+    <article class="card"><h3>Stars</h3><p class="metric" id="repoStars">—</p><p class="hint">stargazers</p></article>
+    <article class="card"><h3>Forks</h3><p class="metric" id="repoForks">—</p><p class="hint">network</p></article>
+    <article class="card"><h3>Default branch</h3><p class="metric" id="repoBranch">—</p><p class="hint">head</p></article>
+    <article class="card"><h3>Last push</h3><p class="metric" id="repoPush">—</p><p class="hint">UTC</p></article>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h3>Commit activity</h3>
+      <span class="pill" id="commitCount">—</span>
+    </div>
+    <ul class="commits" id="commits">
+      <li class="skeleton"></li><li class="skeleton"></li><li class="skeleton"></li>
+    </ul>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h3>Runtime check</h3>
+      <span class="pill" id="apiPill">—</span>
+    </div>
+    <dl class="kv">
+      <div><dt>Served over</dt><dd id="protocol">—</dd></div>
+      <div><dt>Origin</dt><dd id="origin">—</dd></div>
+      <div><dt>User agent</dt><dd id="ua">—</dd></div>
+      <div><dt>Rendered at</dt><dd id="renderedAt">—</dd></div>
+    </dl>
+  </section>
+</main>
+
+<footer>
+  <p>synoc &middot; static build &middot; no backend required</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
