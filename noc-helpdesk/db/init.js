@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import mysql from 'mysql2/promise';
 import bcrypt from 'bcryptjs';
 import { config } from '../src/config.js';
+import { renumberLegacyTickets, hasCurrentFormat } from '../src/ticket-number.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RESET = process.argv.includes('--reset');
@@ -55,11 +56,14 @@ function splitStatements(sql) {
     .filter((s) => s.length > 0);
 }
 
-async function applySchema(conn) {
+async function applySchema(conn, { skipViews = false } = {}) {
   const file = path.join(__dirname, 'schema.sql');
   const sql = await fs.readFile(file, 'utf8');
   console.log('  → applying schema.sql');
   for (const stmt of splitStatements(sql)) {
+    // The views reference `tickets.pic_id`; on legacy databases that column
+    // does not exist yet, so the first pass skips the views.
+    if (skipViews && /^CREATE OR REPLACE VIEW/i.test(stmt)) continue;
     try {
       await conn.query(stmt);
     } catch (err) {
@@ -67,6 +71,59 @@ async function applySchema(conn) {
       throw err;
     }
   }
+}
+
+/**
+ * Older databases predate the `tickets.pic_id` column.
+ * Add it (plus its foreign key) when it is missing.
+ * Returns true when a migration was applied.
+ */
+async function ensurePicColumn(conn) {
+  const [rows] = await conn.query(
+    `SELECT COUNT(*) AS c
+       FROM information_schema.columns
+      WHERE table_schema = DATABASE()
+        AND table_name = 'tickets'
+        AND column_name = 'pic_id'`
+  );
+  if (Number(rows[0].c) > 0) return false;
+
+  console.log('  → migrating tickets.pic_id');
+  await conn.query('ALTER TABLE `tickets` ADD COLUMN `pic_id` INT UNSIGNED NULL');
+  await conn.query(
+    `ALTER TABLE \`tickets\`
+       ADD CONSTRAINT \`fk_ticket_pic\`
+       FOREIGN KEY (\`pic_id\`) REFERENCES \`m_pic\` (\`id\`) ON DELETE SET NULL`
+  );
+  return true;
+}
+
+/**
+ * Older databases predate the `tickets.branch_id` column.
+ * Add it (plus its foreign key) when it is missing.
+ *
+ * WAJIB dijalankan SETELAH `m_branch` dibuat dan SEBELUM view dibuat —
+ * view `v_ticket_list` me-refer `t.branch_id`.
+ */
+async function ensureBranchColumn(conn) {
+  const [rows] = await conn.query(
+    `SELECT COUNT(*) AS c
+       FROM information_schema.columns
+      WHERE table_schema = DATABASE()
+        AND table_name = 'tickets'
+        AND column_name = 'branch_id'`
+  );
+  if (Number(rows[0].c) > 0) return false;
+
+  console.log('  → migrating tickets.branch_id');
+  await conn.query('ALTER TABLE `tickets` ADD COLUMN `branch_id` INT UNSIGNED NULL');
+  await conn.query('ALTER TABLE `tickets` ADD KEY `ix_ticket_branch` (`branch_id`)');
+  await conn.query(
+    `ALTER TABLE \`tickets\`
+       ADD CONSTRAINT \`fk_ticket_branch\`
+       FOREIGN KEY (\`branch_id\`) REFERENCES \`m_branch\` (\`id\`) ON DELETE SET NULL`
+  );
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -106,6 +163,22 @@ const ISPS = [
   { code: 'ISP-001', name: 'PT. XL Axiata Tbk',          contact_name: 'Rudi Hartono',  contact_phone: '08123456011', contact_email: 'noc@xlaxiata.co.id' },
   { code: 'ISP-002', name: 'PT. Indosat Ooredoo Hutchison', contact_name: 'Dewi Lestari', contact_phone: '08123456012', contact_email: 'noc@indosatooredoo.com' },
   { code: 'ISP-003', name: 'PT. Biznet Indo',              contact_name: 'Agus Pratama',  contact_phone: '08123456013', contact_email: 'noc@biznet.id' },
+];
+
+const PICS = [
+  { code: 'PIC-001', name: 'Administrator NOC', position: 'NOC Manager',        department: 'NOC',              phone: '08123456021', email: 'admin@synoc.local',    regional: 'WEST' },
+  { code: 'PIC-002', name: 'NOC Operator',      position: 'NOC Operator',       department: 'NOC',              phone: '08123456022', email: 'noc@synoc.local',      regional: 'CENTRAL' },
+  { code: 'PIC-003', name: 'Field Engineer',    position: 'Field Engineer',     department: 'Field Engineering', phone: '08123456023', email: 'engineer@synoc.local', regional: 'EAST' },
+  { code: 'PIC-004', name: 'Andi Prasetyo',     position: 'Senior NOC Engineer', department: 'NOC',              phone: '08123456024', email: 'andi.prasetyo@synoc.local',  regional: 'WEST' },
+  { code: 'PIC-005', name: 'Dewi Anggraini',    position: 'Network Engineer',   department: 'Network Operations', phone: '08123456025', email: 'dewi.anggraini@synoc.local', regional: 'CENTRAL' },
+  { code: 'PIC-006', name: 'Rizky Ramadhan',     position: 'Field Technician',    department: 'Field Engineering', phone: '08123456026', email: 'rizky.ramadhan@synoc.local',  regional: 'EAST' },
+];
+
+const BRANCHES = [
+  { code: 'CBG-JKT-01', name: 'Cabang Jakarta Pusat',  regional: 'WEST',    city: 'Jakarta',  province: 'DKI Jakarta',  phone: '0215000101', manager: 'Budi Santoso' },
+  { code: 'CBG-BDG-01', name: 'Cabang Bandung Dago',   regional: 'WEST',    city: 'Bandung',  province: 'Jawa Barat',   phone: '0225000102', manager: 'Andi Prasetyo' },
+  { code: 'CBG-SMG-01', name: 'Cabang Semarang',       regional: 'CENTRAL', city: 'Semarang', province: 'Jawa Tengah',  phone: '0245000103', manager: 'Dewi Anggraini' },
+  { code: 'CBG-SBY-01', name: 'Cabang Surabaya Gubeng', regional: 'EAST',   city: 'Surabaya', province: 'Jawa Timur',   phone: '0315000104', manager: 'Rizky Ramadhan' },
 ];
 
 const POPS = [
@@ -160,6 +233,27 @@ async function seed(conn) {
        VALUES (?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE name=VALUES(name), icon=VALUES(icon), sort_order=VALUES(sort_order)`,
       [c.code, c.name, c.icon, c.sort_order]
+    );
+  }
+
+  for (const p of PICS) {
+    await conn.query(
+      `INSERT INTO m_pic (code, name, position, department, phone, email, regional)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE name=VALUES(name), position=VALUES(position),
+         department=VALUES(department), phone=VALUES(phone), email=VALUES(email),
+         regional=VALUES(regional)`,
+      [p.code, p.name, p.position, p.department, p.phone, p.email, p.regional]
+    );
+  }
+
+  for (const b of BRANCHES) {
+    await conn.query(
+      `INSERT INTO m_branch (code, name, regional, city, province, phone, manager)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE name=VALUES(name), regional=VALUES(regional), city=VALUES(city),
+         province=VALUES(province), phone=VALUES(phone), manager=VALUES(manager)`,
+      [b.code, b.name, b.regional, b.city, b.province, b.phone, b.manager]
     );
   }
 
@@ -291,6 +385,17 @@ async function seed(conn) {
      ON DUPLICATE KEY UPDATE full_name=VALUES(full_name), role=VALUES(role)`,
     ['engineer', 'Field Engineer', 'engineer@synoc.local', engHash]
   );
+
+  // --- Backfill PIC pada tiket lama ---
+  // Tiket yang sudah ada belum punya pic_id; isi dari user yang ditugaskan
+  // bila namanya cocok dengan salah satu entry master PIC.
+  await conn.query(
+    `UPDATE tickets t
+       JOIN users u ON u.id = t.assigned_to
+       JOIN m_pic p ON p.name = u.full_name
+      SET t.pic_id = p.id
+     WHERE t.pic_id IS NULL`
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -311,8 +416,27 @@ async function main() {
     console.log(`  → database \`${dbName}\` ready`);
     await conn.query(`USE \`${dbName}\``);
 
+    // Pass 1: tables only (the views need `tickets.pic_id` to exist).
+    await applySchema(conn, { skipViews: true });
+
+    // Legacy databases predate `tickets.pic_id` — add it before the views.
+    await ensurePicColumn(conn);
+
+    // Legacy databases predate `tickets.branch_id` — add it before the views.
+    await ensureBranchColumn(conn);
+
+    // Pass 2: create/replace the views (they expand `t.*` at creation time).
     await applySchema(conn);
+
     await seed(conn);
+
+    // Normalise legacy ticket numbers (SYNOC-ACC-202611-0007) into the
+    // current regional format (NOCWEST/2026/11/00001). Idempotent.
+    const renumber = await renumberLegacyTickets();
+    if (renumber.renumbered) {
+      console.log(`  → ${renumber.renumbered} nomor tiket dimigrasikan ke format regional`);
+      renumber.samples.forEach((s) => console.log(`     ${s}`));
+    }
 
     console.log('\n✓ Done. Credentials:');
     console.log('   admin   / admin123    (administrator)');

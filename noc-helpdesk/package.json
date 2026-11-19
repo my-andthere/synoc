@@ -14,7 +14,14 @@
     "gateway": "node src/gateway.js",
     "db:init": "node db/init.js",
     "db:reset": "node db/init.js --reset",
-    "db:seed-demo": "node db/seed-demo.js"
+    "db:seed-demo": "node db/seed-demo.js",
+    "db:renumber": "node db/migrate-ticket-number.js",
+    "db:tz-local": "node db/migrate-tz-local.js",
+    "test:master-crud": "node db/test-master-crud.js http://127.0.0.1:8000",
+    "test:ticket-renumber": "node db/test-ticket-renumber.js http://127.0.0.1:8000",
+    "test:ticket-submitted-at": "node db/test-ticket-submitted-at.js http://127.0.0.1:8000",
+    "test:ticket-note-time": "node db/test-ticket-note-time.js http://127.0.0.1:8000",
+    "test:ticket-attachments": "node db/test-ticket-attachments.js http://127.0.0.1:8000"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -22,6 +29,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.5.0",
     "mysql2": "^3.11.5"
   }
 }

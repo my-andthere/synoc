@@ -20,7 +20,7 @@ const RESOURCES = {
     columns: ['code', 'name', 'description', 'is_active', 'sort_order'],
     order: 'sort_order, name',
     label: 'name',
-    extra: { code: 'name' },
+    extra: { code: 'code' },
   },
   priority: {
     table: 'm_priority',
@@ -35,6 +35,20 @@ const RESOURCES = {
     order: 'sort_order, name',
     label: 'name',
     extra: { code: 'name' },
+  },
+  branch: {
+    table: 'm_branch',
+    columns: ['code', 'name', 'regional', 'city', 'province', 'address', 'phone', 'manager', 'is_active'],
+    order: 'name',
+    label: 'name',
+    extra: { code: 'code', regional: 'regional' },
+  },
+  pic: {
+    table: 'm_pic',
+    columns: ['code', 'name', 'position', 'department', 'phone', 'email', 'regional', 'is_active'],
+    order: 'name',
+    label: 'name',
+    extra: { name: 'name', code: 'code', position: 'position', regional: 'regional' },
   },
   customer: {
     table: 'm_customer',
@@ -55,16 +69,24 @@ const RESOURCES = {
     columns: ['code', 'name', 'city', 'province', 'address', 'lat', 'lng', 'is_active'],
     order: 'name',
     label: 'name',
-    extra: { code: 'name' },
+    // Kode asli + kota/provinsi supaya pencarian pada dropdown POP bisa
+    // mencocokkan kode maupun lokasi.
+    extra: { code: 'code', city: 'city', province: 'province' },
   },
   ms_splitter: {
     table: 'm_ms_splitter',
     columns: ['code', 'type', 'name', 'pop_id', 'mac_address', 'serial_number', 'status', 'is_active'],
     order: 'name',
     label: 'name',
-    extra: { code: 'name', type: 'type' },
+    // Kode asli + tipe + status untuk pencarian & petunjuk (hint).
+    extra: { code: 'code', type: 'type', status: 'status' },
     joins: `LEFT JOIN m_pop p ON p.id = m.pop_id`,
     select: `m.*, p.name AS pop_name, p.code AS pop_code`,
+    // Dipakai oleh endpoint /options: nama POP ikut diambil agar dropdown
+    // MS / Splitter bisa menampilkan & mencari berdasarkan POP-nya.
+    optionsJoins: `LEFT JOIN m_pop p ON p.id = m.pop_id`,
+    optionsExtra: `p.name AS pop_name`,
+    optionsOrder: 'm.name',
   },
   link: {
     table: 'm_link',
@@ -99,6 +121,63 @@ function resourceFor(req, res) {
   return res_;
 }
 
+/**
+ * Column metadata per table: which columns are NOT NULL, whether they have a
+ * default and whether they are auto-increment.
+ *
+ * Cached per table because the schema does not change at runtime.
+ */
+const columnCache = new Map();
+
+async function columnMeta(table) {
+  if (columnCache.has(table)) return columnCache.get(table);
+
+  const rows = await query(
+    `SELECT COLUMN_NAME, COLUMN_DEFAULT, EXTRA, DATA_TYPE, IS_NULLABLE
+       FROM information_schema.columns
+      WHERE table_schema = DATABASE() AND table_name = ?`,
+    [table]
+  );
+
+  const meta = new Map();
+  for (const r of rows) {
+    const autoIncrement = String(r.EXTRA).includes('auto_increment');
+    meta.set(String(r.COLUMN_NAME).toLowerCase(), {
+      notNull: String(r.IS_NULLABLE).toUpperCase() === 'NO',
+      hasDefault: r.COLUMN_DEFAULT !== null || autoIncrement,
+      autoIncrement,
+      numeric: /^(int|decimal|float|double)/i.test(String(r.DATA_TYPE)),
+    });
+  }
+  columnCache.set(table, meta);
+  return meta;
+}
+
+/**
+ * Strip values that the column cannot accept.
+ *
+ * - NULL / empty string for a NOT NULL column with a default → the column is
+ *   removed from the statement so the database default applies.
+ * - NULL / empty string for a NOT NULL column WITHOUT a default → the column
+ *   is mandatory and the request is rejected with a clear message.
+ *
+ * Returns `null` when a required value is missing.
+ */
+function sanitizePayload(payload, meta) {
+  for (const [col, value] of Object.entries(payload)) {
+    const info = meta.get(col);
+    if (!info || !info.notNull) continue;
+    if (value !== null && value !== undefined && value !== '') continue;
+
+    if (info.hasDefault) {
+      delete payload[col];
+    } else {
+      return col;
+    }
+  }
+  return null;
+}
+
 /** GET /api/master — resource catalogue for the UI. */
 masterRouter.get('/', (req, res) => {
   res.json({
@@ -119,8 +198,12 @@ masterRouter.get('/:resource', async (req, res, next) => {
   const params = [];
   if (req.query.active_only === '1') where.push('m.is_active = 1');
   if (req.query.search) {
-    where.push('(m.name LIKE ? OR m.code LIKE ?)');
-    params.push(`%${req.query.search}%`, `%${req.query.search}%`);
+    // The searchable columns differ per table: `m_link` has `link_name`
+    // instead of `name`, and `m_sla_policy` has no `code` column at all.
+    const searchCols = [def.label];
+    if (def.columns.includes('code') && !searchCols.includes('code')) searchCols.push('code');
+    where.push(`(${searchCols.map((c) => `m.${c} LIKE ?`).join(' OR ')})`);
+    params.push(...searchCols.map(() => `%${req.query.search}%`));
   }
 
   const select = def.select || 'm.*';
@@ -146,12 +229,17 @@ masterRouter.get('/:resource/options', async (req, res, next) => {
   if (!def) return;
 
   const extraCols = Object.entries(def.extra || {})
-    .map(([alias, col]) => `${col} AS ${alias}`)
+    .map(([alias, col]) => `m.${col} AS ${alias}`)
     .join(', ');
-  const select = `m.id, m.${def.label} AS label${extraCols ? ', ' + extraCols : ''}`;
+  const extra = [extraCols, def.optionsExtra].filter(Boolean).join(', ');
+  const select = `m.id, m.${def.label} AS label${extra ? ', ' + extra : ''}`;
+  const joins = def.optionsJoins ? ` ${def.optionsJoins}` : '';
+  // Default ORDER BY tetap `def.order`; resource yang memakai JOIN mengganti
+  //nya lewat `optionsOrder` (mis. "name" jadi ambigu saat join m_pop).
+  const order = def.optionsOrder || def.order;
   try {
     const rows = await query(
-      `SELECT ${select} FROM \`${def.table}\` m WHERE m.is_active = 1 ORDER BY ${def.order}`
+      `SELECT ${select} FROM \`${def.table}\` m${joins} WHERE m.is_active = 1 ORDER BY ${order}`
     );
     res.json({ data: rows });
   } catch (err) {
@@ -189,6 +277,17 @@ masterRouter.post('/:resource', requireRole('admin', 'noc'), async (req, res, ne
     return res.status(400).json({ error: 'No valid fields supplied' });
   }
 
+  // Kolom NOT NULL tanpa nilai akan menggagalkan INSERT (500). Kolom yang
+  // punya default cukup dikosongkan agar default database yang dipakai.
+  const meta = await columnMeta(def.table);
+  const missingRequired = sanitizePayload(payload, meta);
+  if (missingRequired) {
+    return res.status(400).json({ error: `Kolom "${missingRequired}" wajib diisi` });
+  }
+  if (!Object.keys(payload).length) {
+    return res.status(400).json({ error: 'No valid fields supplied' });
+  }
+
   const cols = Object.keys(payload);
   const placeholders = cols.map(() => '?').join(', ');
   try {
@@ -201,6 +300,11 @@ masterRouter.post('/:resource', requireRole('admin', 'noc'), async (req, res, ne
       `SELECT ${def.select || 'm.*'} FROM \`${def.table}\` m ${def.joins || ''} WHERE m.id = ? LIMIT 1`,
       [result.insertId]
     );
+    await execute(
+      `INSERT INTO audit_log (entity, entity_id, action, changes, created_by)
+       VALUES (?, ?, 'create', ?, ?)`,
+      [def.table, String(result.insertId), JSON.stringify(payload), req.user?.id ?? null]
+    ).catch(() => { /* audit is best-effort */ });
     res.status(201).json({ data: row, message: 'Created' });
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') {
@@ -223,6 +327,18 @@ masterRouter.put('/:resource/:id', requireRole('admin', 'noc'), async (req, res,
     return res.status(400).json({ error: 'No valid fields supplied' });
   }
 
+  // Kolom NOT NULL tidak boleh dikosongkan. Untuk kolom yang punya default,
+  // kosongkan saja (nilai lama dipertahankan). Untuk kolom wajib tanpa
+  // default, tolong permintaan dengan pesan yang jelas.
+  const meta = await columnMeta(def.table);
+  const missingRequired = sanitizePayload(payload, meta);
+  if (missingRequired) {
+    return res.status(400).json({ error: `Kolom "${missingRequired}" tidak boleh dikosongkan` });
+  }
+  if (!Object.keys(payload).length) {
+    return res.status(400).json({ error: 'No valid fields supplied' });
+  }
+
   const cols = Object.keys(payload);
   try {
     const result = await execute(
@@ -234,6 +350,11 @@ masterRouter.put('/:resource/:id', requireRole('admin', 'noc'), async (req, res,
       `SELECT ${def.select || 'm.*'} FROM \`${def.table}\` m ${def.joins || ''} WHERE m.id = ? LIMIT 1`,
       [req.params.id]
     );
+    await execute(
+      `INSERT INTO audit_log (entity, entity_id, action, changes, created_by)
+       VALUES (?, ?, 'update', ?, ?)`,
+      [def.table, String(req.params.id), JSON.stringify(payload), req.user?.id ?? null]
+    ).catch(() => { /* audit is best-effort */ });
     res.json({ data: row, message: 'Updated' });
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') {
@@ -243,24 +364,51 @@ masterRouter.put('/:resource/:id', requireRole('admin', 'noc'), async (req, res,
   }
 });
 
-/** DELETE /api/master/:resource/:id — delete (soft when is_active exists). */
+/**
+ * DELETE /api/master/:resource/:id — hard delete.
+ *
+ * The row is removed from the table for good (no soft delete), so it
+ * disappears from the list and from the dropdown options as well.
+ * Referencing rows are handled by the foreign keys:
+ *   - `ON DELETE SET NULL`  → the reference on the other table is cleared
+ *   - `ON DELETE CASCADE`   → the dependent rows are removed too
+ *   - `RESTRICT` (default)  → the delete is refused with HTTP 409
+ */
 masterRouter.delete('/:resource/:id', requireRole('admin'), async (req, res, next) => {
   const def = resourceFor(req, res);
   if (!def) return;
 
   try {
-    const existing = await queryOne(`SELECT id FROM \`${def.table}\` WHERE id = ? LIMIT 1`, [req.params.id]);
+    const existing = await queryOne(
+      `SELECT * FROM \`${def.table}\` WHERE id = ? LIMIT 1`,
+      [req.params.id]
+    );
     if (!existing) return res.status(404).json({ error: 'Record not found' });
 
-    if (def.columns.includes('is_active')) {
-      await execute(`UPDATE \`${def.table}\` SET is_active = 0 WHERE id = ?`, [req.params.id]);
-      return res.json({ message: 'Deactivated' });
+    const result = await execute(`DELETE FROM \`${def.table}\` WHERE id = ?`, [req.params.id]);
+    if (!result.affectedRows) {
+      return res.status(404).json({ error: 'Record not found' });
     }
-    await execute(`DELETE FROM \`${def.table}\` WHERE id = ?`, [req.params.id]);
-    res.json({ message: 'Deleted' });
+
+    // Keep a trace of the destructive operation.
+    await execute(
+      `INSERT INTO audit_log (entity, entity_id, action, changes, created_by)
+       VALUES (?, ?, 'delete', ?, ?)`,
+      [
+        def.table,
+        String(req.params.id),
+        JSON.stringify({ deleted: existing }),
+        req.user?.id ?? null,
+      ]
+    ).catch(() => { /* audit is best-effort, never block the delete */ });
+
+    res.json({ message: 'Deleted', data: { id: Number(req.params.id) } });
   } catch (err) {
-    if (err.code === 'ER_ROW_IS_REFERENCED_2') {
-      return res.status(409).json({ error: 'Record is referenced by other data and cannot be deleted' });
+    if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_NO_REFERENCED_ROW_2') {
+      return res.status(409).json({
+        error: 'Data masih dipakai oleh data lain (tiket atau kebijakan SLA) sehingga tidak bisa dihapus. '
+             + 'Nonaktifkan saja bila hanya ingin menyembunyikannya.',
+      });
     }
     next(err);
   }

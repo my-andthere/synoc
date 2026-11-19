@@ -55,10 +55,21 @@ export async function computeDueDates(serviceTypeId, priorityId, from = new Date
 /**
  * Attach / refresh the SLA clock row for a ticket.
  * Called on ticket creation and whenever priority or service type changes.
+ *
+ * @param {number} ticketId
+ * @param {object} opts
+ * @param {number} opts.serviceTypeId
+ * @param {number} opts.priorityId
+ * @param {boolean} [opts.reset]  hitung ulang due date dari `from`
+ * @param {Date}   [opts.from]    titik awal SLA (default: waktu sekarang)
  */
-export async function syncTicketSla(ticketId, { serviceTypeId, priorityId, reset = false }) {
+export async function syncTicketSla(ticketId, { serviceTypeId, priorityId, reset = false, from }) {
   const existing = await queryOne('SELECT * FROM ticket_sla WHERE ticket_id = ?', [ticketId]);
-  const { responseDueAt, resolutionDueAt, policy } = await computeDueDates(serviceTypeId, priorityId);
+  const { responseDueAt, resolutionDueAt, policy } = await computeDueDates(
+    serviceTypeId,
+    priorityId,
+    from || new Date()
+  );
 
   if (!existing) {
     await execute(

@@ -48,6 +48,37 @@ const SCHEMA = {
       { key: 'is_active', label: 'Aktif', type: 'bool' },
     ],
   },
+  branch: {
+    title: 'Cabang',
+    icon: 'bi-diagram-2',
+    desc: 'Master data cabang operasional NOC.',
+    columns: [
+      { key: 'code', label: 'Kode', type: 'text', required: true },
+      { key: 'name', label: 'Nama Cabang', type: 'text', required: true },
+      { key: 'regional', label: 'Regional', type: 'select', options: ['WEST', 'CENTRAL', 'EAST'] },
+      { key: 'city', label: 'Kota', type: 'text' },
+      { key: 'province', label: 'Provinsi', type: 'text' },
+      { key: 'address', label: 'Alamat', type: 'textarea' },
+      { key: 'phone', label: 'Telepon', type: 'text' },
+      { key: 'manager', label: 'Kepala Cabang', type: 'text' },
+      { key: 'is_active', label: 'Aktif', type: 'bool' },
+    ],
+  },
+  pic: {
+    title: 'PIC',
+    icon: 'bi-person-badge',
+    desc: 'Master data Person in Charge / penanggung jawab tiket.',
+    columns: [
+      { key: 'code', label: 'Kode', type: 'text', required: true },
+      { key: 'name', label: 'Nama', type: 'text', required: true },
+      { key: 'position', label: 'Jabatan', type: 'text' },
+      { key: 'department', label: 'Departemen', type: 'text' },
+      { key: 'phone', label: 'Telepon', type: 'text' },
+      { key: 'email', label: 'Email', type: 'email' },
+      { key: 'regional', label: 'Regional', type: 'select', options: ['WEST', 'CENTRAL', 'EAST'] },
+      { key: 'is_active', label: 'Aktif', type: 'bool' },
+    ],
+  },
   customer: {
     title: 'Customer',
     icon: 'bi-building',
@@ -208,23 +239,38 @@ export async function renderMaster(container, resource) {
     ` : emptyState(schema.icon, `Belum ada data ${schema.title}`)}
   `;
 
-  document.getElementById('mdNew').addEventListener('click', () => openForm(schema, resource, null));
+  document.getElementById('mdNew').addEventListener('click', () => openForm(schema, resource, null, container));
 
   container.querySelectorAll('[data-edit]').forEach((btn) => {
     btn.addEventListener('click', () => {
+      // Abaikan tombol yang sudah tidak lagi terpasang di DOM. Tanpa guard ini
+      // klik pada tombol lama (mis. saat tabel di-render ulang) akan membuka
+      // form untuk data dari resource sebelumnya.
+      if (!btn.isConnected) return;
       const row = rows.find((r) => String(r.id) === btn.dataset.edit);
-      openForm(schema, resource, row);
+      openForm(schema, resource, row, container);
     });
   });
 
   container.querySelectorAll('[data-del]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Nonaktifkan / hapus data ini?')) return;
+      // Guard yang sama untuk hapus: tombol yang sudah detached tidak boleh
+      // lagi menghapus baris (datanya bisa sudah berubah / resource lain).
+      if (!btn.isConnected) return;
+
+      const id = btn.dataset.del;
+      const row = rows.find((r) => String(r.id) === id);
+      const label = row ? (row.name || row.link_name || row.code || `#${row.id}`) : `#${id}`;
+      if (!confirm(`Hapus permanen "${label}"?\nData akan dihapus dari database dan tidak dapat dikembalikan.`)) return;
+      btn.disabled = true;
       try {
-        await api.masterDelete(resource, btn.dataset.del);
+        await api.masterDelete(resource, id);
         toast('Data berhasil dihapus', 'ok');
         renderMaster(container, resource);
-      } catch (err) { toast(err.message, 'err'); }
+      } catch (err) {
+        toast(err.message || 'Gagal menghapus data', 'err');
+        btn.disabled = false;
+      }
     });
   });
 }
@@ -259,7 +305,7 @@ async function masterOptions(master) {
   return masterCache.get(master);
 }
 
-async function openForm(schema, resource, row) {
+async function openForm(schema, resource, row, container) {
   const isEdit = Boolean(row);
   const masterCols = schema.columns.filter((c) => c.type === 'master');
 
@@ -321,9 +367,13 @@ async function openForm(schema, resource, row) {
       </label>`;
     }
     const type = col.type === 'number' ? 'number' : col.type === 'email' ? 'email' : 'text';
+    // `step="any"` wajib untuk kolom DECIMAL: tanpa itu HTML5 validate
+    // memakai step=1 sehingga nilai seperti -6.2088 (lat/lng POP) atau
+    // 20.40 (jam SLA) dianggap tidak valid dan form TIDAK bisa disubmit.
+    const step = type === 'number' ? ' step="any"' : '';
     return `<label class="field">
       <span>${esc(col.label)}${col.required ? ' <span style="color:var(--danger)">*</span>' : ''}</span>
-      <input type="${type}" name="${esc(col.key)}" value="${esc(value)}"${req} />
+      <input type="${type}"${step} name="${esc(col.key)}" value="${esc(value)}"${req} />
     </label>`;
   }).join('');
 
@@ -341,8 +391,13 @@ async function openForm(schema, resource, row) {
       modalBody.querySelector('#mdCancel').addEventListener('click', closeModal);
       modalBody.querySelector('#mdForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const form = e.target;
+        // Form yang sudah tidak terpasang (mis. pengguna pindah halaman saat
+        // form terbuka) tidak boleh lagi mengirim data.
+        if (!form.isConnected) return;
+
         const errBox = modalBody.querySelector('#mdError');
-        const payload = Object.fromEntries(new FormData(e.target).entries());
+        const payload = Object.fromEntries(new FormData(form).entries());
 
         for (const col of schema.columns) {
           if (col.type === 'bool') payload[col.key] = Number(payload[col.key]) ? 1 : 0;
@@ -356,7 +411,7 @@ async function openForm(schema, resource, row) {
           toast('Data berhasil disimpan', 'ok');
           closeModal();
           masterCache.clear();
-          renderMaster(document.getElementById('content'), resource);
+          renderMaster(container || document.getElementById('content'), resource);
         } catch (err) {
           errBox.textContent = err.message;
           errBox.hidden = false;

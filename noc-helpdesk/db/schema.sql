@@ -26,6 +26,14 @@ CREATE TABLE IF NOT EXISTS `users` (
 -- MASTER DATA
 -- ---------------------------------------------------------
 
+-- Bookmark migrasi data (marker) — dipakai agar migrasi hanya jalan sekali.
+CREATE TABLE IF NOT EXISTS `m_schema_migration` (
+  `name`       VARCHAR(80)  NOT NULL,
+  `applied_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `note`       VARCHAR(255) NULL,
+  PRIMARY KEY (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Service type: Access / Backbone / Fishbone / Other
 CREATE TABLE IF NOT EXISTS `m_service_type` (
   `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -144,6 +152,43 @@ CREATE TABLE IF NOT EXISTS `m_report_channel` (
   UNIQUE KEY `uq_channel_code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- PIC master — Person in Charge / penanggung jawab tiket
+CREATE TABLE IF NOT EXISTS `m_pic` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `code`       VARCHAR(30)  NOT NULL,
+  `name`       VARCHAR(120) NOT NULL,
+  `position`   VARCHAR(80)  NULL,
+  `department` VARCHAR(80)  NULL,
+  `phone`      VARCHAR(40)  NULL,
+  `email`      VARCHAR(160) NULL,
+  `regional`   VARCHAR(80)  NULL,
+  `is_active`  TINYINT(1)   NOT NULL DEFAULT 1,
+  `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_pic_code` (`code`),
+  KEY `ix_pic_regional` (`regional`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Branch / Cabang master — unit operasional cabang NOC
+CREATE TABLE IF NOT EXISTS `m_branch` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `code`       VARCHAR(30)  NOT NULL,
+  `name`       VARCHAR(120) NOT NULL,
+  `regional`   VARCHAR(80)  NULL,
+  `city`       VARCHAR(80)  NULL,
+  `province`   VARCHAR(80)  NULL,
+  `address`    VARCHAR(255) NULL,
+  `phone`      VARCHAR(40)  NULL,
+  `manager`    VARCHAR(120) NULL,
+  `is_active`  TINYINT(1)   NOT NULL DEFAULT 1,
+  `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_branch_code` (`code`),
+  KEY `ix_branch_regional` (`regional`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ---------------------------------------------------------
 -- SLA
 -- ---------------------------------------------------------
@@ -220,13 +265,14 @@ CREATE TABLE IF NOT EXISTS `tickets` (
   `channel_id`     INT UNSIGNED NULL,
   `customer_id`    INT UNSIGNED NULL,
   `customer_name`  VARCHAR(120) NULL,
+  `pic_id`         INT UNSIGNED NULL,
+  `branch_id`      INT UNSIGNED NULL,
   `reported_by`    VARCHAR(120) NULL,
-  `reporter_contact` VARCHAR(80) NULL,
 
   -- Workflow
   `status`         ENUM('open','in_progress','pending_customer','escalated','resolved','closed','cancelled') NOT NULL DEFAULT 'open',
   `assigned_to`    BIGINT UNSIGNED NULL,
-  `team`           VARCHAR(60)  NULL,
+  `regional`       VARCHAR(80)  NULL,
   `resolution_note` TEXT        NULL,
   `root_cause`     VARCHAR(255) NULL,
   `closed_at`      DATETIME     NULL,
@@ -243,6 +289,7 @@ CREATE TABLE IF NOT EXISTS `tickets` (
   KEY `ix_ticket_created` (`created_at`),
   KEY `ix_ticket_cid` (`cid`),
   KEY `ix_ticket_channel` (`channel_id`),
+  KEY `ix_ticket_branch` (`branch_id`),
   CONSTRAINT `fk_ticket_service`   FOREIGN KEY (`service_type_id`) REFERENCES `m_service_type` (`id`),
   CONSTRAINT `fk_ticket_priority`  FOREIGN KEY (`priority_id`)      REFERENCES `m_priority` (`id`),
   CONSTRAINT `fk_ticket_link`      FOREIGN KEY (`link_id`)          REFERENCES `m_link` (`id`)         ON DELETE SET NULL,
@@ -251,7 +298,7 @@ CREATE TABLE IF NOT EXISTS `tickets` (
   CONSTRAINT `fk_ticket_ms`        FOREIGN KEY (`ms_splitter_id`)   REFERENCES `m_ms_splitter` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_ticket_channel`   FOREIGN KEY (`channel_id`)       REFERENCES `m_report_channel` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_ticket_customer`  FOREIGN KEY (`customer_id`)      REFERENCES `m_customer` (`id`)    ON DELETE SET NULL,
-  CONSTRAINT `fk_ticket_assignee`  FOREIGN KEY (`assigned_to`)      REFERENCES `users` (`id`)         ON DELETE SET NULL,
+  CONSTRAINT `fk_ticket_pic`       FOREIGN KEY (`pic_id`)           REFERENCES `m_pic` (`id`)        ON DELETE SET NULL,  CONSTRAINT `fk_ticket_branch`    FOREIGN KEY (`branch_id`)     REFERENCES `m_branch` (`id`)     ON DELETE SET NULL,  CONSTRAINT `fk_ticket_assignee`  FOREIGN KEY (`assigned_to`)      REFERENCES `users` (`id`)         ON DELETE SET NULL,
   CONSTRAINT `fk_ticket_creator`   FOREIGN KEY (`created_by`)       REFERENCES `users` (`id`)         ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -291,6 +338,26 @@ CREATE TABLE IF NOT EXISTS `ticket_events` (
   KEY `ix_event_ticket` (`ticket_id`, `created_at`),
   CONSTRAINT `fk_event_ticket` FOREIGN KEY (`ticket_id`) REFERENCES `tickets` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_event_user`   FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Lampiran (gambar) pada catatan timeline
+CREATE TABLE IF NOT EXISTS `ticket_event_attachments` (
+  `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `event_id`    BIGINT UNSIGNED NOT NULL,
+  `ticket_id`   BIGINT UNSIGNED NOT NULL,
+  `file_name`   VARCHAR(255) NOT NULL,
+  `stored_name` VARCHAR(255) NOT NULL,
+  `mime_type`   VARCHAR(120) NOT NULL,
+  `size_bytes`  INT UNSIGNED  NOT NULL DEFAULT 0,
+  `created_by`  BIGINT UNSIGNED NULL,
+  `created_at`  DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_attachment_stored` (`stored_name`),
+  KEY `ix_attachment_event` (`event_id`),
+  KEY `ix_attachment_ticket` (`ticket_id`),
+  CONSTRAINT `fk_attachment_event`  FOREIGN KEY (`event_id`)  REFERENCES `ticket_events` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_attachment_ticket` FOREIGN KEY (`ticket_id`) REFERENCES `tickets` (`id`)       ON DELETE CASCADE,
+  CONSTRAINT `fk_attachment_user`   FOREIGN KEY (`created_by`) REFERENCES `users` (`id`)         ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Audit trail for master-data changes
@@ -361,6 +428,10 @@ SELECT
   po.code  AS pop_code,
   ms.name  AS ms_splitter_name,
   ms.type  AS ms_splitter_type,
+  pic.name AS pic_name,
+  pic.code AS pic_code,
+  br.name AS branch_name,
+  br.code AS branch_code,
   u.full_name AS assignee_name,
   sla.response_due_at,
   sla.resolution_due_at,
@@ -380,5 +451,7 @@ LEFT JOIN m_report_channel ch ON ch.id = t.channel_id
 LEFT JOIN m_customer c        ON c.id  = t.customer_id
 LEFT JOIN m_pop po            ON po.id = t.pop_id
 LEFT JOIN m_ms_splitter ms    ON ms.id = t.ms_splitter_id
+LEFT JOIN m_pic pic           ON pic.id = t.pic_id
+LEFT JOIN m_branch br         ON br.id  = t.branch_id
 LEFT JOIN users u             ON u.id  = t.assigned_to
 LEFT JOIN ticket_sla sla      ON sla.ticket_id = t.id;

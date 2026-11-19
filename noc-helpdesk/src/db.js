@@ -11,11 +11,38 @@ export const pool = mysql.createPool({
   connectionLimit: config.db.connectionLimit,
   queueLimit: 0,
   charset: 'utf8mb4_unicode_ci',
-  timezone: 'Z',
+  // PENTING: kolom DATETIME di database berisi waktu LOKAL (dihasilkan
+  // CURRENT_TIMESTAMP / NOW() pada server database). mysql2 harus membacanya
+  // sebagai waktu lokal — bukan UTC — supaya jam yang tampil di browser sama
+  // dengan jam yang tersimpan. Dengan `timezone: 'Z'` semua jam tampil +7 jam
+  // (lebih awal/later) dari aslinya.
+  timezone: 'local',
   dateStrings: false,
   namedPlaceholders: false,
   supportBigNumbers: true,
   bigNumberStrings: false,
+});
+
+/**
+ * Samakan zona waktu SESSION MySQL dengan zona waktu proses Node.
+ *
+ * Dengan begitu `NOW()` / `CURRENT_TIMESTAMP` di SQL memakai wall clock yang
+ * sama dengan interpretasi `timezone: 'local'` milik mysql2 — sehingga
+ * perbandingan SLA (`NOW() > resolution_due_at`) selalu konsisten.
+ */
+function localUtcOffset() {
+  // getTimezoneOffset() positif untuk zona di belakang UTC (mis. WIB = -420).
+  const minutes = -new Date().getTimezoneOffset();
+  const sign = minutes >= 0 ? '+' : '-';
+  const abs = Math.abs(minutes);
+  const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+  const mm = String(abs % 60).padStart(2, '0');
+  return `${sign}${hh}:${mm}`;
+}
+
+// Setiap koneksi pool disetel ke zona waktu lokal proses Node.
+pool.pool.on('connection', (conn) => {
+  conn.query(`SET time_zone = '${localUtcOffset()}'`);
 });
 
 /** Run a SELECT and return rows. */

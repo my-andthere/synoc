@@ -114,7 +114,7 @@ a:hover { text-decoration: underline; }
 
 .login-hint {
   margin-top: 18px;
-  padding: 11px 13px;
+  padding: 12px 13px 13px;
   font-size: 0.76rem;
   color: var(--muted);
   background: rgba(148, 163, 184, 0.07);
@@ -123,6 +123,71 @@ a:hover { text-decoration: underline; }
   text-align: center;
 }
 .login-hint strong { color: var(--brand); }
+
+.login-hint-label {
+  display: block;
+  margin-bottom: 9px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.demo-accounts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.demo-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 6px 9px;
+  font: inherit;
+  color: var(--muted);
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, color .15s ease, transform .15s ease;
+}
+.demo-btn i {
+  font-size: 1.05rem;
+  color: var(--brand);
+  transition: color .15s ease;
+}
+.demo-btn-name {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.demo-btn small {
+  font-size: 0.63rem;
+  line-height: 1.2;
+  color: var(--dim);
+}
+.demo-btn:hover {
+  color: var(--text);
+  background: rgba(34, 211, 238, 0.1);
+  border-color: var(--line-hi);
+  transform: translateY(-1px);
+}
+.demo-btn:hover i { color: var(--brand-2); }
+.demo-btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.demo-btn.active {
+  color: var(--text);
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.22), rgba(129, 140, 248, 0.22));
+  border-color: var(--brand);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.25), 0 6px 18px rgba(34, 211, 238, 0.12);
+}
+.demo-btn.active small { color: var(--brand); }
 
 /* ================= FORM ELEMENTS ================= */
 
@@ -165,13 +230,305 @@ select {
 select option { background: var(--panel-solid); color: var(--text); }
 textarea { resize: vertical; min-height: 92px; line-height: 1.5; }
 
+/* ================= SEARCHABLE DROPDOWN (combobox) ================= */
+
+.ss { position: relative; }
+
+.ss .ss-input {
+  padding-right: 62px;
+  cursor: text;
+}
+.ss .ss-arrow {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.ss .ss-clear {
+  position: absolute;
+  right: 32px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 2px;
+  color: var(--dim);
+  cursor: pointer;
+  font-size: 0.82rem;
+  line-height: 1;
+}
+.ss .ss-clear:hover { color: var(--text); }
+
+.ss .ss-menu {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--panel-solid);
+  border: 1px solid var(--line-hi);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 4px;
+}
+.ss .ss-menu[hidden] { display: none; }
+
+.ss .ss-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.86rem;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+.ss .ss-item:hover,
+.ss .ss-item.is-active { background: rgba(34, 211, 238, 0.13); color: #fff; }
+.ss .ss-item small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.7rem;
+  margin-top: 2px;
+}
+.ss .ss-empty {
+  padding: 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0 16px;
 }
 .form-grid .span-2 { grid-column: span 2; }
+.form-grid .span-full { grid-column: 1 / -1; }
 @media (max-width: 620px) { .form-grid .span-2 { grid-column: span 1; } }
+
+/* ================= LAMPIRAN GAMBAR (CATATAN) ================= */
+
+.attach-field { margin-bottom: 15px; }
+
+/* Zona tarik-lepas */
+.attach-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 14px 16px;
+  text-align: center;
+  border: 1px dashed var(--line-hi);
+  border-radius: var(--radius-sm);
+  background: rgba(8, 13, 24, 0.42);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.attach-drop:hover,
+.attach-drop:focus-visible {
+  border-color: var(--brand);
+  background: rgba(34, 211, 238, 0.06);
+  outline: none;
+}
+.attach-drop.is-over {
+  border-color: var(--brand);
+  border-style: solid;
+  background: rgba(34, 211, 238, 0.12);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.16);
+}
+.attach-drop > i {
+  font-size: 1.5rem;
+  color: var(--brand);
+  line-height: 1;
+  margin-bottom: 2px;
+}
+.attach-drop-main { font-size: 0.84rem; color: var(--text); }
+.attach-drop-main u { color: var(--brand); text-decoration: none; border-bottom: 1px dotted var(--brand); }
+.attach-drop-hint { font-size: 0.72rem; color: var(--dim); }
+
+/* Daftar berkas yang dipilih (sebelum diunggah) */
+.attach-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 10px;
+}
+.attach-chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  max-width: 260px;
+  padding: 6px 30px 6px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-hi);
+}
+.attach-chip img {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+}
+.attach-chip-meta { min-width: 0; display: flex; flex-direction: column; }
+.attach-chip-name {
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.attach-chip-size { font-size: 0.68rem; color: var(--dim); }
+.attach-chip-x {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.attach-chip-x:hover { color: var(--danger); background: rgba(239, 68, 68, 0.12); }
+
+/* Galeri lampiran pada entri timeline */
+.tl-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.tl-thumb {
+  display: block;
+  width: 92px;
+  height: 92px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: rgba(8, 13, 24, 0.5);
+  transition: border-color 0.15s, transform 0.12s;
+}
+.tl-thumb:hover { border-color: var(--brand); transform: translateY(-1px); }
+.tl-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.tl-thumb-missing {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--dim);
+  font-size: 1.3rem;
+}
+
+/* ===== BARIS FORM DENGAN KOMPOSISI KOLOM EKSPLISIT =====
+   Dipakai pada Ticket Baru agar jumlah field per baris pasti (tidak
+   bergantung pada auto-fit) dan tidak menyisakan kolom kosong.
+   - .form-row-main   : Baris 1 -> Ticket Title (2 kolom) + 4 select (1 kolom)
+                         rasio 33% / 17% / 17% / 17% / 17%
+   - .form-row-detail : Baris 2 -> Tanggal 20% | Jam 20% | Deskripsi 60%
+*/
+.form-row {
+  display: grid;
+  gap: 0 16px;
+  align-items: start;
+}
+
+.form-row-main { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.form-row-main .span-2 { grid-column: span 2; }
+
+/* 1fr + 1fr + 3fr -> 20% / 20% / 60% dari ruang yang tersisa setelah gap.
+   min 160px pada dua kolom pertama supaya label "Tanggal/Jam Pengajuan"
+   tidak terpotong atau turun ke dua baris. */
+.form-row-detail {
+  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) minmax(0, 3fr);
+}
+.form-row-detail .col-wide { grid-column: span 1; }
+
+/* Label satu baris & sejajar; kontrol lebih lebar = area kronologi. */
+.form-row-detail .field > span { white-space: nowrap; }
+
+/* Tinggi kontrol serasi dengan input/select lain pada form (42px). */
+.form-row-detail input { height: 42px; }
+
+/* Label sejajar di atas, kontrol di bawahnya; textarea boleh lebih tinggi. */
+.form-row .field { min-width: 0; }
+
+/* ===== KELOMPOK FIELD (SUBGROUP) =====
+   Panel tipis untuk sekumpulan field yang saling berkaitan; dipakai untuk
+   "Waktu Pengajuan & Kronologi" pada Ticket Baru. */
+.form-subgroup {
+  margin-top: 18px;
+  padding: 13px 16px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(8, 13, 24, 0.32);
+}
+.form-subgroup-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.form-subgroup-head i { color: var(--brand); font-size: 0.86rem; }
+.form-subgroup-head::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--line-hi), transparent);
+}
+
+/* ===== RESPONSIF =====
+   Row 2 tetap satu baris pada desktop; diperkecil bertahap agar tidak
+   terjadi horizontal overflow.
+   Row 1: 4 select butuh ~190px agar placeholder tidak terpotong. Bila
+   ruang tidak cukup, judul turun ke baris sendiri dan 4 select tetap
+   satu baris (Cabang tetap di sebelah kanan Kanal Pelaporan). */
+@media (max-width: 1560px) {
+  .form-row-main { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .form-row-main .span-2 { grid-column: span 4; }
+}
+@media (max-width: 1080px) {
+  .form-row-main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .form-row-main .span-2 { grid-column: span 2; }
+}
+@media (max-width: 900px) {
+  .form-row-detail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .form-row-detail .col-wide { grid-column: span 2; }
+}
+@media (max-width: 620px) {
+  .form-row-main { grid-template-columns: minmax(0, 1fr); }
+  .form-row-main .span-2 { grid-column: span 1; }
+  .form-row-detail { grid-template-columns: minmax(0, 1fr); }
+  .form-row-detail .col-wide { grid-column: span 1; }
+  .form-subgroup { padding: 12px 12px 0; }
+}
 
 .form-error {
   color: #fca5a5;
@@ -440,6 +797,15 @@ tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: rgba(148, 163, 184, 0.05); }
 .tbl-title { font-weight: 600; }
 .tbl-sub { font-size: 0.75rem; color: var(--muted); }
+
+/* Kolom PIC pada tabel utama — nama tidak boleh terlalu lebar. */
+td.col-pic { white-space: nowrap; max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
+td.col-pic > span:first-child { display: inline-block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+
+/* Kolom Aksi pada tabel utama — tombol Update / Edit. */
+th.col-actions, td.col-actions { white-space: nowrap; width: 1%; padding-right: 8px; }
+.act-cell { display: flex; gap: 6px; align-items: center; }
+.act-cell .btn-xs { display: inline-flex; align-items: center; gap: 4px; }
 
 /* ================= BADGES ================= */
 

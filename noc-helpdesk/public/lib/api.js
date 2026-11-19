@@ -39,6 +39,13 @@ class ApiError extends Error {
   }
 }
 
+/**
+ * Cache object URL untuk lampiran gambar.
+ * Dipisah di level modul (bukan properti fungsi) agar tidakKetergantungan
+ * pada nama fungsi yang tidak terikat di scope modul.
+ */
+const ATTACHMENT_BLOB_CACHE = new Map();
+
 async function request(path, { method = 'GET', body, params } = {}) {
   const url = new URL(`${API_BASE}${path}`, window.location.origin);
   if (params) {
@@ -95,9 +102,78 @@ export const api = {
   ticket: (id) => request(`/api/tickets/${id}`),
   createTicket: (payload) => request('/api/tickets', { method: 'POST', body: payload }),
   updateTicket: (id, payload) => request(`/api/tickets/${id}`, { method: 'PUT', body: payload }),
-  setStatus: (id, status, note) => request(`/api/tickets/${id}/status`, { method: 'POST', body: { status, note } }),
+  setStatus: (id, status, note, occurredTime) =>
+    request(`/api/tickets/${id}/status`, { method: 'POST', body: { status, note, occurred_time: occurredTime || null } }),
   assign: (id, assignedTo) => request(`/api/tickets/${id}/assign`, { method: 'POST', body: { assigned_to: assignedTo } }),
-  addEvent: (id, note, type) => request(`/api/tickets/${id}/events`, { method: 'POST', body: { note, event_type: type } }),
+  addEvent: (id, note, type, occurredTime) =>
+    request(`/api/tickets/${id}/events`, { method: 'POST', body: { note, event_type: type, occurred_time: occurredTime || null } }),
+
+  /**
+   * Tambah catatan sekaligus lampiran gambar (multipart/form-data).
+   * @param {number} id            id tiket
+   * @param {string} note          isi catatan
+   * @param {string} type          event_type
+   * @param {string|null} occurredTime  jam kejadian ("HH:MM")
+   * @param {File[]} files         berkas gambar (objek File)
+   */
+  addEventWithFiles: async (id, note, type, occurredTime, files) => {
+    const url = new URL(`${API_BASE}/api/tickets/${id}/events`, window.location.origin);
+    const fd = new FormData();
+    fd.append('note', note);
+    fd.append('event_type', type || 'note');
+    if (occurredTime) fd.append('occurred_time', occurredTime);
+    for (const item of files || []) {
+      // Terima File langsung maupun pembungkus { file }.
+      const file = (item instanceof Blob) ? item : (item && item.file ? item.file : null);
+      if (!file) continue;
+      fd.append('files', file, file.name || 'gambar');
+    }
+
+    const headers = {};
+    if (session.token) headers['Authorization'] = `Bearer ${session.token}`;
+    // Jangan set Content-Type — browser yang mengatur boundary multipart.
+
+    let res;
+    try {
+      res = await fetch(url, { method: 'POST', headers, body: fd });
+    } catch {
+      throw new ApiError('Tidak dapat terhubung ke server', 0);
+    }
+    const text = await res.text();
+    let data = null;
+    if (text) {
+      try { data = JSON.parse(text); }
+      catch { data = { raw: text }; }
+    }
+    if (!res.ok) {
+      if (res.status === 401) session.clear();
+      throw new ApiError(data?.error || `HTTP ${res.status}`, res.status);
+    }
+    return data;
+  },
+
+  /**
+   * Ambil lampiran sebagai blob URL (object URL) supaya bisa dipakai pada
+   * <img src> tanpa mengekspos token di URL.
+   *
+   * @param {number} attachmentId
+   * @returns {Promise<string>} object URL
+   */
+  attachmentBlobUrl: async (attachmentId) => {
+    if (ATTACHMENT_BLOB_CACHE.has(attachmentId)) return ATTACHMENT_BLOB_CACHE.get(attachmentId);
+
+    const url = new URL(`${API_BASE}/api/tickets/attachments/${attachmentId}`, window.location.origin);
+    const headers = {};
+    if (session.token) headers['Authorization'] = `Bearer ${session.token}`;
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new ApiError(`Gagal memuat lampiran #${attachmentId}`, res.status);
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    ATTACHMENT_BLOB_CACHE.set(attachmentId, objectUrl);
+    return objectUrl;
+  },
+
   deleteTicket: (id) => request(`/api/tickets/${id}`, { method: 'DELETE' }),
 
   // --- SLA ---

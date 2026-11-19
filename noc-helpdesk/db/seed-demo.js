@@ -44,10 +44,10 @@ const DESCRIPTIONS = [
   'Kabel drop core terputus saat أعمال Preventif yesterday. Repository sudah dikembalikan.',
 ];
 
+// "Reported By" pada aplikasi selalu diambil dari akun yang login.
+// Data demo memakai nama-nama akun yang tersedia.
 const REPORTED_BY = [
-  ['Siti Rahayu', '08123456002'], ['Budi Santoso', '08123456001'],
-  ['Andi Wijaya', '08123456003'], ['Rina Halim', '08123456004'],
-  ['Fajar Nugroho', '08123456005'],
+  'Administrator NOC', 'NOC Operator', 'Field Engineer',
 ];
 
 const CHANNEL_CODES = ['CUSTOM', 'EMAIL', 'TELEGRAM', 'WHATSAPP', 'PHONE', 'PORTAL'];
@@ -74,6 +74,7 @@ async function main() {
   const msRows = await query('SELECT id FROM m_ms_splitter');
   const linkRows = await query('SELECT id, isp_id, cid, link_name FROM m_link');
   const custRows = await query('SELECT id FROM m_customer');
+  const picRows = await query('SELECT id FROM m_pic WHERE is_active = 1 ORDER BY id');
   const users = await query("SELECT id FROM users WHERE role IN ('noc','engineer') ORDER BY id");
 
   const svc = Object.fromEntries(svcRows.map((r) => [r.code, r.id]));
@@ -99,11 +100,14 @@ async function main() {
     const popId = popRows[i % popRows.length]?.id ?? null;
     const msId = msRows[i % msRows.length]?.id ?? null;
     const custId = custRows[i % custRows.length]?.id ?? null;
+    const picId = picRows.length ? (picRows[i % picRows.length]?.id ?? null) : null;
     const assignee = users[i % users.length]?.id ?? admin.id;
-    const [reportedBy, contact] = pick(REPORTED_BY, i);
+    const reportedBy = pick(REPORTED_BY, i);
     const status = pick(STATUS_POOL, i * 7);
+    const regionalCode = ['WEST', 'CENTRAL', 'EAST'][i % 3];
 
-    const ticketNumber = await nextTicketNumber(svcCode);
+    // Nomor tiket mengikuti regional: NOC<REGIONAL>/<YYYY>/<MM>/<urut>
+    const ticketNumber = await nextTicketNumber(regionalCode);
     const isp = link?.isp_id ?? null;
     const ispRow = isp ? await queryOne('SELECT name FROM m_isp WHERE id = ?', [isp]) : null;
 
@@ -113,9 +117,9 @@ async function main() {
            ticket_number, service_type_id, title, description,
            cid, link_id, link_name, isp_id, isp_name, pop_id, ms_splitter_id,
            mac_address, serial_number, vlan_id, signal_input_cpe_dbm, latitude, longitude,
-           priority_id, channel_id, customer_id, customer_name, reported_by, reporter_contact,
-           status, assigned_to, team, created_by, created_at
-         ) VALUES (?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?, ?)`,
+           priority_id, channel_id, customer_id, customer_name, pic_id, reported_by,
+           status, assigned_to, regional, created_by, created_at
+         ) VALUES (?,?,?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?)`,
         [
           ticketNumber, svcId, title, pick(DESCRIPTIONS, i),
           link?.cid ?? null, link?.id ?? null, link?.link_name ?? null, isp, ispRow?.name ?? null,
@@ -126,8 +130,8 @@ async function main() {
           -(19 + (i % 12)) + (i % 3 === 0 ? 0.5 : 0),
           -6.2088 + (i % 10) * 0.05,
           106.8456 + (i % 10) * 0.05,
-          priId, chId, custId, null, reportedBy, contact,
-          status, assignee, ['NOC', 'Field', 'Core'][i % 3], admin.id,
+          priId, chId, custId, null, picId, reportedBy,
+          status, assignee, regionalCode, admin.id,
           new Date(Date.now() - (i % 12) * 86400000 - (i % 20) * 3600000),
         ]
       );

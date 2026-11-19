@@ -63,7 +63,9 @@ async function logout() {
   session.clear();
   el.appShell.hidden = true;
   el.loginScreen.hidden = false;
+  document.getElementById('loginUsername').value = '';
   document.getElementById('loginPassword').value = '';
+  document.querySelectorAll('.demo-btn.active').forEach((b) => b.classList.remove('active'));
 }
 
 async function enterApp() {
@@ -155,6 +157,26 @@ async function navigate(view, opts = {}) {
 // ---------------------------------------------------------------------------
 
 el.loginForm.addEventListener('submit', handleLogin);
+
+/**
+ * Demo account buttons — clicking one fills the login form with the
+ * matching username/password pair so it can be submitted straight away.
+ */
+document.getElementById('demoAccounts')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.demo-btn');
+  if (!btn) return;
+
+  const usernameInput = document.getElementById('loginUsername');
+  const passwordInput = document.getElementById('loginPassword');
+  usernameInput.value = btn.dataset.username || '';
+  passwordInput.value = btn.dataset.password || '';
+
+  document.querySelectorAll('.demo-btn').forEach((b) => b.classList.toggle('active', b === btn));
+  el.loginError.hidden = true;
+
+  usernameInput.focus();
+});
+
 document.getElementById('logoutBtn').addEventListener('click', logout);
 document.getElementById('refreshBtn').addEventListener('click', () => {
   checkHealth();

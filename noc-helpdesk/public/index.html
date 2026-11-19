@@ -29,7 +29,24 @@
       <p id="loginError" class="form-error" hidden></p>
       <button type="submit" class="btn btn-primary btn-block" id="loginBtn">Masuk</button>
       <div class="login-hint">
-        <strong>Demo:</strong> admin/admin123 · noc/noc123 · engineer/engineer123
+        <span class="login-hint-label">Pilih akun demo</span>
+        <div class="demo-accounts" id="demoAccounts">
+          <button type="button" class="demo-btn" data-username="admin" data-password="admin123" data-role="Administrator">
+            <i class="bi bi-person-badge"></i>
+            <span class="demo-btn-name">admin</span>
+            <small>Administrator</small>
+          </button>
+          <button type="button" class="demo-btn" data-username="noc" data-password="noc123" data-role="NOC Operator">
+            <i class="bi bi-headset"></i>
+            <span class="demo-btn-name">noc</span>
+            <small>NOC Operator</small>
+          </button>
+          <button type="button" class="demo-btn" data-username="engineer" data-password="engineer123" data-role="Field Engineer">
+            <i class="bi bi-tools"></i>
+            <span class="demo-btn-name">engineer</span>
+            <small>Field Engineer</small>
+          </button>
+        </div>
       </div>
     </form>
   </div>
@@ -55,6 +72,8 @@
         <button class="nav-item" data-view="master" data-resource="service_type"><span><i class="bi bi-diagram-3"></i></span> Jenis Layanan</button>
         <button class="nav-item" data-view="master" data-resource="priority"><span><i class="bi bi-flag"></i></span> Prioritas</button>
         <button class="nav-item" data-view="master" data-resource="channel"><span><i class="bi bi-envelope"></i></span> Kanal Pelaporan</button>
+        <button class="nav-item" data-view="master" data-resource="branch"><span><i class="bi bi-diagram-2"></i></span> Cabang</button>
+        <button class="nav-item" data-view="master" data-resource="pic"><span><i class="bi bi-person-badge"></i></span> PIC</button>
         <button class="nav-item" data-view="master" data-resource="customer"><span><i class="bi bi-building"></i></span> Customer</button>
         <button class="nav-item" data-view="master" data-resource="isp"><span><i class="bi bi-globe"></i></span> ISP</button>
         <button class="nav-item" data-view="master" data-resource="pop"><span><i class="bi bi-geo-alt"></i></span> POP</button>

@@ -3,37 +3,68 @@
  *
  * Sections mirror the NOC reporting sheet:
  *   1. Informasi Umum      — title, priority, channel, description
- *   2. Access              — CID, Link Name, ISP Name
- *   3. Access / Network    — POP, MS / Splitter
- *   4. Parameter Teknis    — MAC, serial, VLAN, signal, lat/long
+ *   2. Access              — CID, Link Name, ISP Name  (only for "Access")
+ *   3. Access / Network    — POP, MS / Splitter        (only for "Access")
+ *   4. Pelapor & Penanggung Jawab — reported by (otomatis), PIC, regional
+ *
+ * Sections 2 and 3 carry the `data-access-only` attribute: they are shown
+ * only when the selected service type code is ACCESS.
+ *
+ * NOTE: field "Customer" DIHAPUS dari form ini (18 Nov 2026). Kolom DB
+ * `tickets.customer_id` tetap ada untuk data lama dan masih ditampilkan
+ * di popup detail (baca saja).
  */
-import { api } from '../lib/api.js';
+import { api, session } from '../lib/api.js';
 import { esc, options, toast } from '../lib/ui.js';
+import {
+  createSearchable, setSearchableValue, getSearchableValue, resetSearchable, clearField,
+} from '../lib/searchable.js';
+
+/** Regional/wilayah operasional NOC. */
+const REGIONALS = ['WEST', 'CENTRAL', 'EAST'];
 
 let lookups = null;
 
+/**
+ * Tanggal & jam defaults (waktu lokal browser).
+ * Dipakai sebagai nilai awal field "Tanggal Pengajuan" & "Jam Pengajuan".
+ */
+function currentDateTime() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return {
+    date: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`,
+    time: `${p(d.getHours())}:${p(d.getMinutes())}`,
+  };
+}
+
 async function loadLookups() {
-  const [svc, pri, ch, cust, isp, pop, ms, link, users] = await Promise.all([
+  const [svc, pri, ch, isp, pop, ms, link, pic, branch] = await Promise.all([
     api.masterOptions('service_type'),
     api.masterOptions('priority'),
     api.masterOptions('channel'),
-    api.masterOptions('customer'),
     api.masterOptions('isp'),
     api.masterOptions('pop'),
     api.masterOptions('ms_splitter'),
     api.masterOptions('link'),
-    api.users(true),
+    api.masterOptions('pic'),
+    api.masterOptions('branch'),
   ]);
   lookups = {
     service_types: svc.data,
     priorities: pri.data,
     channels: ch.data,
-    customers: cust.data,
     isps: isp.data,
     pops: pop.data,
     ms_splitters: ms.data,
     links: link.data,
-    users: users.data,
+    // Cabang: label memuat kota agarTechnisi tidak keliru memilih.
+    branches: branch.data,
+    // Label PIC: nama + jabatan supaya teknisi tidak keliru memilih.
+    pics: pic.data.map((p) => ({
+      id: p.id,
+      label: p.position ? `${p.name} — ${p.position}` : p.name,
+    })),
   };
 }
 
@@ -41,12 +72,20 @@ export async function renderTicketForm(container) {
   container.innerHTML = `<div class="skeleton" style="height:520px"></div>`;
   await loadLookups();
 
+  // "Reported By" diisi otomatis dari nama akun yang sedang login.
+  const reporterName = session.user?.full_name || session.user?.username || '';
+
+  // Default tanggal & jam pengajuan = sekarang, tetap bisa diubah/diedit.
+  const now = currentDateTime();
+
   container.innerHTML = `
     <form id="ticketForm" class="card" novalidate>
       <!-- ============ INFORMASI UMUM ============ -->
       <section class="form-section">
         <h3>Informasi Umum</h3>
-        <div class="form-grid">
+
+        <!-- ===== Baris 1: Ticket Title | Jenis Layanan | Priority | Kanal Pelaporan ===== -->
+        <div class="form-row form-row-main">
           <label class="field span-2">
             <span>Ticket Title <span style="color:var(--danger)">*</span></span>
             <input type="text" name="title" id="fTitle" required
@@ -75,17 +114,38 @@ export async function renderTicketForm(container) {
           </label>
 
           <label class="field">
-            <span>Customer</span>
-            <select name="customer_id" id="fCustomer">
-              ${options(lookups.customers, { placeholder: '-- Pilih Customer --' })}
+            <span>Cabang</span>
+            <select name="branch_id" id="fBranch">
+              ${options(lookups.branches, { placeholder: '-- Pilih Cabang --' })}
             </select>
           </label>
+        </div>
 
-          <label class="field span-2">
-            <span>Problem Description</span>
-            <textarea name="description" id="fDescription"
-              placeholder="Jelaskan kronologi, gejala, dan dampak layanan…"></textarea>
-          </label>
+        <!-- ===== Baris 2 (kelompok khusus): Tanggal | Jam | Problem Description ===== -->
+        <div class="form-subgroup">
+          <div class="form-subgroup-head">
+            <i class="bi bi-clock-history"></i>
+            Waktu Pengajuan &amp; Kronologi
+          </div>
+          <div class="form-row form-row-detail">
+            <label class="field">
+              <span>Tanggal Pengajuan</span>
+              <input type="date" name="submitted_date" id="fSubmittedDate" required
+                     value="${now.date}" />
+            </label>
+
+            <label class="field">
+              <span>Jam Pengajuan</span>
+              <input type="time" name="submitted_time" id="fSubmittedTime" step="1" required
+                     value="${now.time}" />
+            </label>
+
+            <label class="field col-wide">
+              <span>Problem Description</span>
+              <textarea name="description" id="fDescription"
+                placeholder="Jelaskan kronologi, gejala, dan dampak layanan…"></textarea>
+            </label>
+          </div>
         </div>
 
         <div id="slaPreview" class="card"
@@ -96,8 +156,8 @@ export async function renderTicketForm(container) {
         </div>
       </section>
 
-      <!-- ============ ACCESS ============ -->
-      <section class="form-section">
+      <!-- ============ ACCESS (hanya untuk Jenis Layanan "Access") ============ -->
+      <section class="form-section" data-access-only hidden>
         <h3>Access</h3>
         <div class="form-grid">
           <label class="field">
@@ -107,17 +167,12 @@ export async function renderTicketForm(container) {
 
           <label class="field">
             <span>Link Name</span>
-            <select name="link_id" id="fLink">
-              ${options(lookups.links, { placeholder: '-- Pilih Link --' })}
-            </select>
+            <div id="fLink" data-name="link_id"></div>
           </label>
 
           <label class="field">
             <span>ISP Name</span>
-            <select name="isp_id" id="fIsp">
-              ${options(lookups.isps, { placeholder: '-- Pilih ISP --' })
-                .replace('<option value="', '<option value="')}
-            </select>
+            <div id="fIsp" data-name="isp_id"></div>
           </label>
 
           <label class="field">
@@ -127,58 +182,18 @@ export async function renderTicketForm(container) {
         </div>
       </section>
 
-      <!-- ============ ACCESS / NETWORK ============ -->
-      <section class="form-section">
+      <!-- ============ ACCESS / NETWORK (hanya untuk Jenis Layanan "Access") ============ -->
+      <section class="form-section" data-access-only hidden>
         <h3>Access / Network</h3>
         <div class="form-grid">
           <label class="field">
             <span>POP (Point of Presence)</span>
-            <select name="pop_id" id="fPop">
-              ${options(lookups.pops, { placeholder: '-- Pilih POP --' })}
-            </select>
+            <div id="fPop" data-name="pop_id"></div>
           </label>
 
           <label class="field">
             <span>MS / Splitter</span>
-            <select name="ms_splitter_id" id="fMs">
-              ${options(lookups.ms_splitters, { placeholder: '-- Pilih MS / Splitter --' })}
-            </select>
-          </label>
-        </div>
-      </section>
-
-      <!-- ============ PARAMETER TEKNIS ============ -->
-      <section class="form-section">
-        <h3>Parameter Teknis</h3>
-        <div class="form-grid">
-          <label class="field">
-            <span>MAC Address</span>
-            <input type="text" name="mac_address" id="fMac" placeholder="48:1F:3B:AA:00:01" />
-          </label>
-
-          <label class="field">
-            <span>Serial Number</span>
-            <input type="text" name="serial_number" id="fSerial" placeholder="HW-8245-0001" />
-          </label>
-
-          <label class="field">
-            <span>VLAN ID</span>
-            <input type="text" name="vlan_id" id="fVlan" placeholder="120" />
-          </label>
-
-          <label class="field">
-            <span>Signal Input CPE (dBm)</span>
-            <input type="number" step="0.1" name="signal_input_cpe_dbm" id="fSignal" placeholder="-21.5" />
-          </label>
-
-          <label class="field">
-            <span>Latitude</span>
-            <input type="number" step="0.0000001" name="latitude" id="fLat" placeholder="-6.2088" />
-          </label>
-
-          <label class="field">
-            <span>Longitude</span>
-            <input type="number" step="0.0000001" name="longitude" id="fLng" placeholder="106.8456" />
+            <div id="fMs" data-name="ms_splitter_id"></div>
           </label>
         </div>
       </section>
@@ -189,25 +204,23 @@ export async function renderTicketForm(container) {
         <div class="form-grid">
           <label class="field">
             <span>Reported By</span>
-            <input type="text" name="reported_by" id="fReportedBy" placeholder="Nama pelapor" />
+            <input type="text" name="reported_by" id="fReportedBy" readonly
+                   value="${esc(reporterName)}" placeholder="Otomatis dari akun login" />
           </label>
 
           <label class="field">
-            <span>Reporter Contact</span>
-            <input type="text" name="reporter_contact" id="fReporterContact" placeholder="No. HP / email" />
-          </label>
-
-          <label class="field">
-            <span>Assigned To</span>
-            <select name="assigned_to" id="fAssignee">
-              ${options(lookups.users.map((u) => ({ id: u.id, label: `${u.full_name} (${u.role})` })),
-                     { placeholder: '-- Pilih Petugas --' })}
+            <span>PIC</span>
+            <select name="pic_id" id="fPic">
+              ${options(lookups.pics, { placeholder: '-- Pilih PIC --' })}
             </select>
           </label>
 
           <label class="field">
-            <span>Team</span>
-            <input type="text" name="team" id="fTeam" placeholder="NOC / Field / Core" />
+            <span>Regional <span style="color:var(--danger)">*</span></span>
+            <select name="regional" id="fRegional" required>
+              ${options(REGIONALS.map((r) => ({ id: r, label: r })),
+                     { placeholder: '-- Pilih Regional --' })}
+            </select>
           </label>
         </div>
       </section>
@@ -264,22 +277,111 @@ function wireForm(container) {
   svcSel.addEventListener('change', refreshSla);
   priSel.addEventListener('change', refreshSla);
 
-  // --- Link selection auto-fills ISP + link name ---
-  const linkSel = document.getElementById('fLink');
-  const ispSel = document.getElementById('fIsp');
+  // --- Searchable dropdown: Link Name & ISP Name ---
+  // Link Name & ISP Name bisa banyak, jadi memakai combobox yang bisa diketik
+  // untuk mencari (bukan <select> native).
+  const linkBox = document.getElementById('fLink');
+  const ispBox = document.getElementById('fIsp');
   const linkNameInput = document.getElementById('fLinkName');
   const cidInput = document.getElementById('fCid');
 
-  linkSel.addEventListener('change', () => {
-    const link = lookups.links.find((l) => String(l.id) === linkSel.value);
-    if (!link) return;
-    linkNameInput.value = link.label || '';
-    if (link.isp_id && link.isp_id !== undefined) {
-      const opt = Array.from(ispSel.options).find((o) => o.value === String(link.isp_id));
-      if (opt) ispSel.value = String(link.isp_id);
-    }
-    if (link.cid && !cidInput.value) cidInput.value = link.cid;
+  const linkItems = lookups.links.map((l) => ({
+    id: l.id,
+    label: l.label,
+    // Pencarian juga cocok dengan kode & CID link.
+    searchText: [l.label, l.code, l.cid].filter(Boolean).join(' '),
+    hint: l.cid || '',
+  }));
+  const ispItems = lookups.isps.map((i) => ({
+    id: i.id,
+    label: i.label,
+    searchText: [i.label, i.code].filter(Boolean).join(' '),
+  }));
+
+  createSearchable(linkBox, {
+    items: linkItems,
+    placeholder: '-- Pilih Link --',
+    searchPlaceholder: 'Ketik nama Link…',
+    onChange: (value) => {
+      const link = lookups.links.find((l) => String(l.id) === String(value));
+      if (!link) {
+        linkNameInput.value = '';
+        return;
+      }
+      linkNameInput.value = link.label || '';
+      // Auto-fill ISP dari Link yang dipilih.
+      if (link.isp_id) {
+        const isp = lookups.isps.find((i) => String(i.id) === String(link.isp_id));
+        if (isp) setSearchableValue(ispBox, isp.id, isp.label);
+      }
+      if (link.cid && !cidInput.value) cidInput.value = link.cid;
+    },
   });
+
+  createSearchable(ispBox, {
+    items: ispItems,
+    placeholder: '-- Pilih ISP --',
+    searchPlaceholder: 'Ketik nama ISP…',
+  });
+
+  // --- Searchable dropdown: POP & MS / Splitter ---
+  // Kedua daftar ini cukup panjang, jadi memakai combobox yang bisa diketik.
+  // Pencarian POP cocok dengan nama, kode, kota, dan provinsi.
+  // Pencarian MS / Splitter cocok dengan nama, kode, tipe, status, dan nama POP.
+  const popBox = document.getElementById('fPop');
+  const msBox = document.getElementById('fMs');
+
+  const popItems = lookups.pops.map((p) => ({
+    id: p.id,
+    label: p.label,
+    searchText: [p.label, p.code, p.city, p.province].filter(Boolean).join(' '),
+    hint: [p.code, p.city].filter(Boolean).join(' · '),
+  }));
+  const msItems = lookups.ms_splitters.map((m) => ({
+    id: m.id,
+    label: m.label,
+    searchText: [m.label, m.code, m.type, m.status, m.pop_name].filter(Boolean).join(' '),
+    hint: [m.type, m.pop_name].filter(Boolean).join(' · '),
+  }));
+
+  createSearchable(popBox, {
+    items: popItems,
+    placeholder: '-- Pilih POP --',
+    searchPlaceholder: 'Ketik nama/kode POP…',
+  });
+
+  createSearchable(msBox, {
+    items: msItems,
+    placeholder: '-- Pilih MS / Splitter --',
+    searchPlaceholder: 'Ketik nama/kode MS…',
+  });
+
+  // --- Access-only elements ---
+  // Section "Access" dan "Access / Network" hanya relevan untuk service type
+  // Access. Saat jenis layanan lain dipilih, elemen disembunyikan dan
+  // nilainya dikosongkan agar tidak ikut terkirim ke server.
+  const accessSections = Array.from(form.querySelectorAll('[data-access-only]'));
+  const ACCESS_FIELD_IDS = ['fCid', 'fLink', 'fIsp', 'fLinkName', 'fPop', 'fMs'];
+
+  function isAccessService() {
+    if (!svcSel.value) return false;
+    const svc = lookups.service_types.find((s) => String(s.id) === String(svcSel.value));
+    if (!svc) return false;
+    return String(svc.code || svc.label || '').toUpperCase() === 'ACCESS';
+  }
+
+  function syncAccessSections() {
+    const show = isAccessService();
+    accessSections.forEach((section) => { section.hidden = !show; });
+    if (!show) {
+      ACCESS_FIELD_IDS.forEach((id) => {
+        clearField(document.getElementById(id));
+      });
+    }
+  }
+
+  svcSel.addEventListener('change', syncAccessSections);
+  syncAccessSections();
 
   // --- Submit ---
   form.addEventListener('submit', async (e) => {
@@ -298,6 +400,20 @@ function wireForm(container) {
     }
     if (!payload.service_type_id) { toast('Jenis Layanan wajib dipilih', 'err'); return; }
     if (!payload.priority_id) { toast('Priority wajib dipilih', 'err'); return; }
+    // Tanggal & jam pengajuan: keduanya wajib (dan boleh diubah/diedit).
+    if (!payload.submitted_date || !payload.submitted_time) {
+      toast('Tanggal & Jam Pengajuan wajib diisi', 'err');
+      (payload.submitted_date ? document.getElementById('fSubmittedTime')
+                              : document.getElementById('fSubmittedDate')).focus();
+      return;
+    }
+    // Regional wajib karena menjadi bagian dari nomor tiket
+    // (contoh: NOCCENTRAL/2026/11/00001).
+    if (!payload.regional) {
+      toast('Regional wajib dipilih', 'err');
+      document.getElementById('fRegional').focus();
+      return;
+    }
 
     btn.disabled = true;
     btn.textContent = 'Menyimpan…';
@@ -305,6 +421,9 @@ function wireForm(container) {
       const { data } = await api.createTicket(payload);
       toast(`Tiket ${data.ticket_number} berhasil dibuat`, 'ok');
       form.reset();
+      resetSearchables();
+      syncAccessSections();
+      applyNowDefaults();
       window.dispatchEvent(new CustomEvent('synoc:navigate', { detail: { view: 'ticket', id: data.id } }));
     } catch (err) {
       toast(err.message || 'Gagal membuat tiket', 'err');
@@ -314,7 +433,35 @@ function wireForm(container) {
     }
   });
 
+  /** Kosongkan dropdown searchable (form.reset() tidak menyentuh tampilannya). */
+  function resetSearchables() {
+    [linkBox, ispBox, popBox, msBox].forEach((box) => resetSearchable(box));
+  }
+
+  // Tombol "Bersihkan" (type=reset) hanya mengembalikan input native;
+  // teks combobox + placeholder perlu dikembalikan sendiri.
+  form.addEventListener('reset', () => {
+    setTimeout(() => {
+      resetSearchables();
+      applyNowDefaults();
+    }, 0);
+  });
+
+  /** Kembalikan tanggal & jam pengajuan ke waktu sekarang. */
+  function applyNowDefaults() {
+    const t = currentDateTime();
+    const dEl = document.getElementById('fSubmittedDate');
+    const tEl = document.getElementById('fSubmittedTime');
+    if (dEl) dEl.value = t.date;
+    if (tEl) tEl.value = t.time;
+  }
+
   document.getElementById('fReset').addEventListener('click', () => {
-    setTimeout(refreshSla, 0);
+    setTimeout(() => {
+      resetSearchables();
+      refreshSla();
+      syncAccessSections();
+      applyNowDefaults();
+    }, 0);
   });
 }
